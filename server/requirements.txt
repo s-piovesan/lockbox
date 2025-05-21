@@ -1,1 +1,4 @@
-# requirements.txt placeholder
+pyserial==3.5
+websockets==11.0.3
+python-dotenv==1.0.0
+colorama==0.4.6

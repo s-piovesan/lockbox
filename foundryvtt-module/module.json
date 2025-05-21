@@ -1,1 +1,35 @@
-# module.json placeholder
+{
+  "id": "lockbox-simulator",
+  "title": "Lockbox Simulator",
+  "description": "A module that provides a lockpicking simulation for roleplaying games, connected to a physical Arduino lockbox device.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "10",
+    "verified": "11"
+  },
+  "authors": [
+    {
+      "name": "Your Name",
+      "email": "your.email@example.com",
+      "url": "https://yourwebsite.com"
+    }
+  ],
+  "relationships": {
+    "requires": []
+  },
+  "esmodules": [
+    "module.js"
+  ],
+  "styles": [],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "languages/en.json"
+    }
+  ],
+  "socket": true,
+  "url": "https://github.com/yourusername/lockbox-simulator",
+  "manifest": "https://raw.githubusercontent.com/yourusername/lockbox-simulator/main/module.json",
+  "download": "https://github.com/yourusername/lockbox-simulator/archive/v1.0.0.zip"
+}

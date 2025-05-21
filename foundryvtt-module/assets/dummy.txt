@@ -1,1 +1,9 @@
-placeholder
+This directory contains images and assets for the Lockbox Simulator module.
+
+Required images:
+- chest-easy.webp
+- chest-medium.webp
+- chest-hard.webp
+- chest-master.webp
+
+You should place appropriately themed treasure chest images here for each difficulty level.

@@ -1,1 +1,507 @@
-# serrure.html placeholder
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lockbox Simulator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+            text-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+        }
+        
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        
+        .status {
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            color: #4CAF50;
+        }
+        
+        .status.disconnected {
+            color: #f44336;
+        }
+        
+        .lockbox-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+        
+        .joysticks-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .joystick {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30%;
+        }
+        
+        .joystick-label {
+            margin-bottom: 5px;
+        }
+        
+        .joystick-value {
+            font-family: monospace;
+            background-color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            width: 80px;
+            text-align: center;
+        }
+        
+        .joystick-visual {
+            width: 100px;
+            height: 100px;
+            background-color: #333;
+            border-radius: 50%;
+            position: relative;
+            margin: 10px 0;
+            border: 2px solid #555;
+        }
+        
+        .joystick-handle {
+            width: 30px;
+            height: 30px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+        
+        .leds-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .led {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30%;
+        }
+        
+        .led-label {
+            margin-bottom: 5px;
+        }
+        
+        .led-visual {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .led-control {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .led-value {
+            font-family: monospace;
+            background-color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            width: 80px;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+        .log-container {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+        }
+        
+        .log-entry.info {
+            color: #4CAF50;
+        }
+        
+        .log-entry.error {
+            color: #f44336;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #555;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lockbox Simulator</h1>
+        
+        <div class="status-container">
+            <div>WebSocket Status: <span id="ws-status" class="status disconnected">Disconnected</span></div>
+            <div>Arduino Status: <span id="arduino-status" class="status disconnected">Unknown</span></div>
+        </div>
+        
+        <div class="lockbox-container">
+            <div>
+                <div class="section-title">Joysticks (Arduino Inputs)</div>
+                <div class="joysticks-container">
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 1</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick1-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick1-value">0</div>
+                    </div>
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 2</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick2-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick2-value">0</div>
+                    </div>
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 3</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick3-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick3-value">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="section-title">LEDs (Arduino Outputs)</div>
+                <div class="leds-container">
+                    <div class="led">
+                        <div class="led-label">LED 1</div>
+                        <div class="led-visual" id="led1-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led1-control">
+                        <div class="led-value" id="led1-value">0</div>
+                    </div>
+                    <div class="led">
+                        <div class="led-label">LED 2</div>
+                        <div class="led-visual" id="led2-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led2-control">
+                        <div class="led-value" id="led2-value">0</div>
+                    </div>
+                    <div class="led">
+                        <div class="led-label">LED 3</div>
+                        <div class="led-visual" id="led3-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led3-control">
+                        <div class="led-value" id="led3-value">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="log-container" id="log-container"></div>
+    </div>
+    
+    <footer>
+        Lockbox Simulator for Roleplaying Games &copy; 2025
+    </footer>
+    
+    <script>
+        // WebSocket connection
+        let websocket = null;
+        const wsStatus = document.getElementById('ws-status');
+        const arduinoStatus = document.getElementById('arduino-status');
+        const logContainer = document.getElementById('log-container');
+        
+        // LED elements
+        const ledControls = [
+            document.getElementById('led1-control'),
+            document.getElementById('led2-control'),
+            document.getElementById('led3-control')
+        ];
+        
+        const ledValues = [
+            document.getElementById('led1-value'),
+            document.getElementById('led2-value'),
+            document.getElementById('led3-value')
+        ];
+        
+        const ledVisuals = [
+            document.getElementById('led1-visual'),
+            document.getElementById('led2-visual'),
+            document.getElementById('led3-visual')
+        ];
+        
+        // Joystick elements
+        const joystickHandles = [
+            document.getElementById('joystick1-handle'),
+            document.getElementById('joystick2-handle'),
+            document.getElementById('joystick3-handle')
+        ];
+        
+        const joystickValues = [
+            document.getElementById('joystick1-value'),
+            document.getElementById('joystick2-value'),
+            document.getElementById('joystick3-value')
+        ];
+        
+        // Add log entry
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Limit log entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            // Default to localhost if running locally
+            const host = window.location.hostname || 'localhost';
+            const wsUrl = `ws://${host}:8765`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(event) {
+                wsStatus.textContent = 'Connected';
+                wsStatus.className = 'status connected';
+                addLogEntry('WebSocket connection established');
+            };
+            
+            websocket.onclose = function(event) {
+                wsStatus.textContent = 'Disconnected';
+                wsStatus.className = 'status disconnected';
+                arduinoStatus.textContent = 'Unknown';
+                arduinoStatus.className = 'status disconnected';
+                addLogEntry('WebSocket connection closed', 'error');
+                
+                // Try to reconnect after a delay
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            websocket.onerror = function(event) {
+                addLogEntry('WebSocket error', 'error');
+            };
+            
+            websocket.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    processWebSocketMessage(data);
+                } catch (error) {
+                    addLogEntry(`Error processing message: ${error}`, 'error');
+                }
+            };
+        }
+        
+        // Process incoming WebSocket message
+        function processWebSocketMessage(data) {
+            if (!data.type) {
+                return;
+            }
+            
+            switch (data.type) {
+                case 'state':
+                    // Initial state update
+                    updateJoystickDisplay(data.joysticks);
+                    updateLEDDisplay(data.leds);
+                    arduinoStatus.textContent = 'Connected';
+                    arduinoStatus.className = 'status connected';
+                    addLogEntry('Received initial state from server');
+                    break;
+                    
+                case 'joystick_update':
+                    // Joystick values from Arduino
+                    updateJoystickDisplay(data.joysticks);
+                    break;
+                    
+                case 'led_update':
+                    // LED values updated
+                    updateLEDDisplay(data.leds);
+                    break;
+                    
+                default:
+                    addLogEntry(`Unknown message type: ${data.type}`);
+            }
+        }
+        
+        // Update joystick display based on data
+        function updateJoystickDisplay(joysticks) {
+            if (!joysticks) return;
+            
+            // Update display for each joystick
+            if (joysticks.joystick1 !== undefined) {
+                updateJoystick(0, joysticks.joystick1);
+            }
+            
+            if (joysticks.joystick2 !== undefined) {
+                updateJoystick(1, joysticks.joystick2);
+            }
+            
+            if (joysticks.joystick3 !== undefined) {
+                updateJoystick(2, joysticks.joystick3);
+            }
+        }
+        
+        // Update a single joystick's visual representation
+        function updateJoystick(index, value) {
+            // Update the value display
+            joystickValues[index].textContent = value;
+            
+            // Calculate position (Arduino analog value is 0-1023)
+            // Map to a position within the joystick visual (-30px to +30px)
+            const centerX = 0;
+            const centerY = (value - 512) / 512 * 30; // Map to -30 to +30 pixels
+            
+            // Apply the position to the joystick handle
+            joystickHandles[index].style.transform = `translate(calc(-50% + ${centerX}px), calc(-50% + ${centerY}px))`;
+        }
+        
+        // Update LED display based on data
+        function updateLEDDisplay(leds) {
+            if (!leds) return;
+            
+            // Update display for each LED
+            if (leds.led1 !== undefined) {
+                updateLED(0, leds.led1);
+            }
+            
+            if (leds.led2 !== undefined) {
+                updateLED(1, leds.led2);
+            }
+            
+            if (leds.led3 !== undefined) {
+                updateLED(2, leds.led3);
+            }
+        }
+        
+        // Update a single LED's visual representation
+        function updateLED(index, value) {
+            // Update slider value
+            ledControls[index].value = value;
+            
+            // Update the value display
+            ledValues[index].textContent = value;
+            
+            // Calculate the LED color based on intensity
+            // Green with varying opacity
+            const opacity = value / 255;
+            ledVisuals[index].style.backgroundColor = `rgba(76, 175, 80, ${opacity})`;
+            ledVisuals[index].style.boxShadow = `0 0 ${15 * opacity}px rgba(76, 175, 80, ${opacity})`;
+        }
+        
+        // Send LED values to server
+        function sendLEDValues() {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            
+            const message = {
+                type: 'led_control',
+                leds: {
+                    led1: parseInt(ledControls[0].value),
+                    led2: parseInt(ledControls[1].value),
+                    led3: parseInt(ledControls[2].value)
+                }
+            };
+            
+            websocket.send(JSON.stringify(message));
+        }
+        
+        // Setup event listeners for LED sliders
+        ledControls.forEach((control, index) => {
+            control.addEventListener('input', function() {
+                const value = parseInt(control.value);
+                updateLED(index, value);
+            });
+            
+            control.addEventListener('change', function() {
+                sendLEDValues();
+                addLogEntry(`Set LED ${index + 1} to ${control.value}`);
+            });
+        });
+        
+        // Initialize WebSocket connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
