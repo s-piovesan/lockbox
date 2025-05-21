@@ -1,1 +1,3 @@
-# lockbox
+# Lockbox
+
+This project simulates a lockpicking mechanism...
