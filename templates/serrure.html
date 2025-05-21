@@ -210,15 +210,127 @@
             color: #888;
             font-size: 0.9em;
         }
+        
+        .admin-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+            display: none; /* Hidden by default */
+        }
+        
+        .admin-panel h2 {
+            color: #E91E63;
+            margin-top: 0;
+        }
+        
+        .admin-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .admin-button {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .admin-button:hover {
+            background-color: #E91E63;
+        }
+        
+        .auth-container {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+        
+        .auth-container input {
+            background-color: #444;
+            border: 1px solid #666;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            margin-right: 10px;
+            outline: none;
+        }
+        
+        .auth-container button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .server-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: space-around;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .server-info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .server-info-label {
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .server-info-value {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Lockbox Simulator</h1>
         
+        <!-- Authentication panel -->
+        <div class="auth-container" id="auth-container">
+            <p>Authentication required to access the lockbox controller.</p>
+            <input type="password" id="auth-token" placeholder="Auth Token">
+            <button id="auth-button">Authenticate</button>
+        </div>
+        
         <div class="status-container">
             <div>WebSocket Status: <span id="ws-status" class="status disconnected">Disconnected</span></div>
             <div>Arduino Status: <span id="arduino-status" class="status disconnected">Unknown</span></div>
+        </div>
+        
+        <!-- Server Info Section -->
+        <div class="server-info" id="server-info">
+            <div class="server-info-item">
+                <div class="server-info-label">Session ID</div>
+                <div class="server-info-value" id="session-id">-</div>
+            </div>
+            <div class="server-info-item">
+                <div class="server-info-label">Uptime</div>
+                <div class="server-info-value" id="server-uptime">-</div>
+            </div>
+            <div class="server-info-item">
+                <div class="server-info-label">Clients</div>
+                <div class="server-info-value" id="client-count">-</div>
+            </div>
         </div>
         
         <div class="lockbox-container">
@@ -274,6 +386,17 @@
             </div>
         </div>
         
+        <!-- Admin Panel -->
+        <div class="admin-panel" id="admin-panel">
+            <h2>Admin Controls</h2>
+            <div class="admin-controls">
+                <button class="admin-button" id="diagnostic-button">Run Diagnostic</button>
+                <button class="admin-button" id="reset-arduino-button">Reset Arduino</button>
+                <button class="admin-button" id="server-status-button">Server Status</button>
+                <button class="admin-button" id="client-list-button">Client List</button>
+            </div>
+        </div>
+        
         <div class="log-container" id="log-container"></div>
     </div>
     
@@ -287,6 +410,23 @@
         const wsStatus = document.getElementById('ws-status');
         const arduinoStatus = document.getElementById('arduino-status');
         const logContainer = document.getElementById('log-container');
+        const authContainer = document.getElementById('auth-container');
+        const adminPanel = document.getElementById('admin-panel');
+        
+        // Authentication elements
+        const authToken = document.getElementById('auth-token');
+        const authButton = document.getElementById('auth-button');
+        
+        // Server info elements
+        const sessionId = document.getElementById('session-id');
+        const serverUptime = document.getElementById('server-uptime');
+        const clientCount = document.getElementById('client-count');
+        
+        // Admin control buttons
+        const diagnosticButton = document.getElementById('diagnostic-button');
+        const resetArduinoButton = document.getElementById('reset-arduino-button');
+        const serverStatusButton = document.getElementById('server-status-button');
+        const clientListButton = document.getElementById('client-list-button');
         
         // LED elements
         const ledControls = [
@@ -320,6 +460,10 @@
             document.getElementById('joystick3-value')
         ];
         
+        // Authentication state
+        let isAuthenticated = false;
+        let isAdmin = false;
+        
         // Add log entry
         function addLogEntry(message, type = 'info') {
             const entry = document.createElement('div');
@@ -346,6 +490,11 @@
                 wsStatus.textContent = 'Connected';
                 wsStatus.className = 'status connected';
                 addLogEntry('WebSocket connection established');
+                
+                // Send ping to check server status
+                sendMessage({
+                    type: 'ping'
+                });
             };
             
             websocket.onclose = function(event) {
@@ -353,6 +502,12 @@
                 wsStatus.className = 'status disconnected';
                 arduinoStatus.textContent = 'Unknown';
                 arduinoStatus.className = 'status disconnected';
+                
+                // Reset authentication state
+                isAuthenticated = false;
+                isAdmin = false;
+                resetUIState();
+                
                 addLogEntry('WebSocket connection closed', 'error');
                 
                 // Try to reconnect after a delay
@@ -373,6 +528,30 @@
             };
         }
         
+        // Reset UI to initial state
+        function resetUIState() {
+            // Hide auth container
+            authContainer.style.display = 'none';
+            
+            // Hide admin panel
+            adminPanel.style.display = 'none';
+            
+            // Reset server info
+            sessionId.textContent = '-';
+            serverUptime.textContent = '-';
+            clientCount.textContent = '-';
+        }
+        
+        // Send a message to the WebSocket server
+        function sendMessage(message) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                return false;
+            }
+            
+            websocket.send(JSON.stringify(message));
+            return true;
+        }
+        
         // Process incoming WebSocket message
         function processWebSocketMessage(data) {
             if (!data.type) {
@@ -380,13 +559,43 @@
             }
             
             switch (data.type) {
+                case 'auth_required':
+                    // Authentication required
+                    isAuthenticated = false;
+                    authContainer.style.display = 'block';
+                    addLogEntry('Authentication required');
+                    break;
+                    
+                case 'auth_failed':
+                    // Authentication failed
+                    isAuthenticated = false;
+                    addLogEntry('Authentication failed', 'error');
+                    break;
+                    
                 case 'state':
                     // Initial state update
+                    isAuthenticated = true;
                     updateJoystickDisplay(data.joysticks);
                     updateLEDDisplay(data.leds);
-                    arduinoStatus.textContent = 'Connected';
-                    arduinoStatus.className = 'status connected';
+                    
+                    // Update Arduino status
+                    updateArduinoStatus(data.arduino_connected);
+                    
+                    // Update server info if available
+                    if (data.server_info) {
+                        updateServerInfo(data.server_info);
+                    }
+                    
+                    // Hide auth container if it was shown
+                    authContainer.style.display = 'none';
+                    
                     addLogEntry('Received initial state from server');
+                    
+                    // Request server status to see if we're admin
+                    sendMessage({
+                        type: 'admin_command',
+                        command: 'server_status'
+                    });
                     break;
                     
                 case 'joystick_update':
@@ -399,8 +608,117 @@
                     updateLEDDisplay(data.leds);
                     break;
                     
+                case 'arduino_status':
+                    // Arduino connection status update
+                    updateArduinoStatus(data.connected);
+                    break;
+                    
+                case 'pong':
+                    // Ping response
+                    addLogEntry('Server ping successful');
+                    break;
+                    
+                case 'admin_response':
+                    // Process admin response
+                    processAdminResponse(data);
+                    break;
+                    
+                case 'server_shutdown':
+                    // Server is shutting down
+                    addLogEntry('Server is shutting down', 'error');
+                    break;
+                    
                 default:
                     addLogEntry(`Unknown message type: ${data.type}`);
+            }
+        }
+        
+        // Update Arduino connection status
+        function updateArduinoStatus(connected) {
+            if (connected) {
+                arduinoStatus.textContent = 'Connected';
+                arduinoStatus.className = 'status connected';
+            } else {
+                arduinoStatus.textContent = 'Disconnected';
+                arduinoStatus.className = 'status disconnected';
+            }
+        }
+        
+        // Update server info display
+        function updateServerInfo(info) {
+            if (info.session_id) {
+                sessionId.textContent = info.session_id;
+            }
+            
+            if (info.uptime) {
+                serverUptime.textContent = info.uptime;
+            }
+            
+            if (info.clients_connected !== undefined) {
+                clientCount.textContent = info.clients_connected;
+            }
+        }
+        
+        // Process admin response
+        function processAdminResponse(data) {
+            if (!data.command) return;
+            
+            // If we received an admin response, we have admin privileges
+            if (!isAdmin) {
+                isAdmin = true;
+                adminPanel.style.display = 'block';
+                addLogEntry('Admin privileges detected');
+            }
+            
+            switch (data.command) {
+                case 'diagnostic':
+                    // Display diagnostic results
+                    const diag = data.results;
+                    let diagMessage = `Diagnostic Results:\n`;
+                    diagMessage += `- Arduino Connected: ${diag.connected}\n`;
+                    diagMessage += `- Port: ${diag.port}\n`;
+                    diagMessage += `- Data Age: ${diag.data_age ? diag.data_age.toFixed(1) + 's' : 'N/A'}\n`;
+                    diagMessage += `- LED Test: ${diag.led_test ? 'Passed' : 'Failed'}`;
+                    
+                    addLogEntry(diagMessage);
+                    break;
+                    
+                case 'server_status':
+                    // Display server status
+                    const status = data.status;
+                    updateServerInfo({
+                        session_id: status.session_id,
+                        uptime: status.uptime,
+                        clients_connected: status.client_count
+                    });
+                    
+                    addLogEntry(`Server uptime: ${status.uptime}, Clients: ${status.client_count}`);
+                    break;
+                    
+                case 'client_list':
+                    // Display client list
+                    const clients = data.clients;
+                    let clientMessage = `Connected Clients (${clients.length}):\n`;
+                    
+                    clients.forEach((client, i) => {
+                        clientMessage += `${i+1}. ID: ${client.id.substr(0, 6)}... | `;
+                        clientMessage += `IP: ${client.address} | `;
+                        clientMessage += `Auth: ${client.authenticated ? 'Yes' : 'No'} | `;
+                        clientMessage += `Admin: ${client.is_admin ? 'Yes' : 'No'} | `;
+                        clientMessage += `Msgs: ${client.messages.received}/${client.messages.sent}\n`;
+                    });
+                    
+                    addLogEntry(clientMessage);
+                    break;
+                    
+                case 'reset_arduino':
+                    // Display reset result
+                    if (data.success) {
+                        addLogEntry('Arduino reset successful');
+                    } else {
+                        addLogEntry('Arduino reset failed', 'error');
+                    }
+                    break;
             }
         }
         
@@ -471,21 +789,70 @@
         
         // Send LED values to server
         function sendLEDValues() {
-            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            if (!isAuthenticated) {
+                addLogEntry('Not authenticated, cannot send LED values', 'error');
                 return;
             }
             
-            const message = {
+            sendMessage({
                 type: 'led_control',
                 leds: {
                     led1: parseInt(ledControls[0].value),
                     led2: parseInt(ledControls[1].value),
                     led3: parseInt(ledControls[2].value)
                 }
-            };
-            
-            websocket.send(JSON.stringify(message));
+            });
         }
+        
+        // Setup authentication button
+        authButton.addEventListener('click', function() {
+            const token = authToken.value.trim();
+            if (!token) {
+                addLogEntry('Please enter an authentication token', 'error');
+                return;
+            }
+            
+            sendMessage({
+                type: 'auth',
+                token: token
+            });
+            
+            // Clear the token input for security
+            authToken.value = '';
+        });
+        
+        // Setup admin panel buttons
+        diagnosticButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'diagnostic'
+            });
+            addLogEntry('Running hardware diagnostic...');
+        });
+        
+        resetArduinoButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'reset_arduino'
+            });
+            addLogEntry('Resetting Arduino connection...');
+        });
+        
+        serverStatusButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'server_status'
+            });
+            addLogEntry('Requesting server status...');
+        });
+        
+        clientListButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'client_list'
+            });
+            addLogEntry('Requesting client list...');
+        });
         
         // Setup event listeners for LED sliders
         ledControls.forEach((control, index) => {
