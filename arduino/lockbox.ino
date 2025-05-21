@@ -11,11 +11,12 @@
 const int JOYSTICK_1_PIN = A0;
 const int JOYSTICK_2_PIN = A1;
 const int JOYSTICK_3_PIN = A2;
+// Additional pins available for expansion: A3, A4, A5
 
 // Pin definitions for LEDs (PWM outputs)
-const int LED_1_PIN = 9;  // Must be PWM pin
-const int LED_2_PIN = 10; // Must be PWM pin
-const int LED_3_PIN = 11; // Must be PWM pin
+const int LED_1_PIN = 3;  // Must be PWM pin
+const int LED_2_PIN = 5;  // Must be PWM pin
+const int LED_3_PIN = 6;  // Must be PWM pin
 
 // Variables to store joystick values
 int joystick1Value = 0;
