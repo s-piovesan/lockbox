@@ -15,8 +15,11 @@ The Lockbox Simulator consists of several integrated components:
 ## Hardware Requirements
 
 - Arduino Uno (or compatible board)
-- 3 analog joysticks (connected to analog pins A0, A1, A2)
-- 3 LEDs with appropriate resistors (connected to PWM pins 9, 10, 11)
+- 3 analog joysticks (each with X and Y axes):
+  - Joystick 1: A0 (X) and A1 (Y)
+  - Joystick 2: A2 (X) and A3 (Y)
+  - Joystick 3: A4 (X) and A5 (Y)
+- 3 LEDs with appropriate resistors (connected to PWM pins D3, D5, D6)
 - USB cable for connecting Arduino to computer
 
 ## Software Setup

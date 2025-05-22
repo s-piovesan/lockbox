@@ -784,7 +784,7 @@
                 <div class="section-title">Joysticks (Arduino Pins A0-A5)</div>
                 <div class="joysticks-container">
                     <div class="joystick">
-                        <div class="joystick-label">Joystick 1</div>
+                        <div class="joystick-label">Joystick 1 (A0/A1)</div>
                         <div class="joystick-visual">
                             <div class="joystick-crosshair"></div>
                             <div class="joystick-handle" id="joystick1-handle"></div>
@@ -800,13 +800,16 @@
                                 <div class="zone-segment zone-nw" data-zone="NW"></div>
                             </div>
                         </div>
-                        <div class="joystick-value" id="joystick1-value">0</div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick1-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick1-valueY">Y: 0</div>
+                        </div>
                         <div class="joystick-indicator">
                             <div class="indicator-bar" id="joystick1-indicator"></div>
                         </div>
                     </div>
                     <div class="joystick">
-                        <div class="joystick-label">Joystick 2</div>
+                        <div class="joystick-label">Joystick 2 (A2/A3)</div>
                         <div class="joystick-visual">
                             <div class="joystick-crosshair"></div>
                             <div class="joystick-handle" id="joystick2-handle"></div>
@@ -822,13 +825,16 @@
                                 <div class="zone-segment zone-nw" data-zone="NW"></div>
                             </div>
                         </div>
-                        <div class="joystick-value" id="joystick2-value">0</div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick2-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick2-valueY">Y: 0</div>
+                        </div>
                         <div class="joystick-indicator">
                             <div class="indicator-bar" id="joystick2-indicator"></div>
                         </div>
                     </div>
                     <div class="joystick">
-                        <div class="joystick-label">Joystick 3</div>
+                        <div class="joystick-label">Joystick 3 (A4/A5)</div>
                         <div class="joystick-visual">
                             <div class="joystick-crosshair"></div>
                             <div class="joystick-handle" id="joystick3-handle"></div>
@@ -844,7 +850,10 @@
                                 <div class="zone-segment zone-nw" data-zone="NW"></div>
                             </div>
                         </div>
-                        <div class="joystick-value" id="joystick3-value">0</div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick3-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick3-valueY">Y: 0</div>
+                        </div>
                         <div class="joystick-indicator">
                             <div class="indicator-bar" id="joystick3-indicator"></div>
                         </div>
@@ -982,10 +991,16 @@
             document.getElementById('joystick3-handle')
         ];
         
-        const joystickValues = [
-            document.getElementById('joystick1-value'),
-            document.getElementById('joystick2-value'),
-            document.getElementById('joystick3-value')
+        const joystickValuesX = [
+            document.getElementById('joystick1-valueX'),
+            document.getElementById('joystick2-valueX'),
+            document.getElementById('joystick3-valueX')
+        ];
+        
+        const joystickValuesY = [
+            document.getElementById('joystick1-valueY'),
+            document.getElementById('joystick2-valueY'),
+            document.getElementById('joystick3-valueY')
         ];
         
         const joystickIndicators = [
@@ -1357,16 +1372,16 @@
             trackJoystickActivity();
             
             // Update display for each joystick
-            if (joysticks.joystick1 !== undefined) {
-                updateJoystick(0, joysticks.joystick1);
+            if (joysticks.joystick1X !== undefined && joysticks.joystick1Y !== undefined) {
+                updateJoystick(0, joysticks.joystick1X, joysticks.joystick1Y);
             }
             
-            if (joysticks.joystick2 !== undefined) {
-                updateJoystick(1, joysticks.joystick2);
+            if (joysticks.joystick2X !== undefined && joysticks.joystick2Y !== undefined) {
+                updateJoystick(1, joysticks.joystick2X, joysticks.joystick2Y);
             }
             
-            if (joysticks.joystick3 !== undefined) {
-                updateJoystick(2, joysticks.joystick3);
+            if (joysticks.joystick3X !== undefined && joysticks.joystick3Y !== undefined) {
+                updateJoystick(2, joysticks.joystick3X, joysticks.joystick3Y);
             }
         }
         

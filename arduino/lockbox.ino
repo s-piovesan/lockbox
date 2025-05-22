@@ -2,16 +2,19 @@
  * Lockbox Controller for RPG
  * 
  * This Arduino sketch:
- * - Reads analog values from 3 joysticks
+ * - Reads analog values from 3 joysticks (each with X and Y axes)
  * - Controls 3 LEDs with PWM (to show intensity)
  * - Communicates with a PC via Serial connection
  */
 
 // Pin definitions for joysticks (analog inputs)
-const int JOYSTICK_1_PIN = A0;
-const int JOYSTICK_2_PIN = A1;
-const int JOYSTICK_3_PIN = A2;
-// Additional pins available for expansion: A3, A4, A5
+// Each joystick has X and Y axis
+const int JOYSTICK_1_X_PIN = A0;
+const int JOYSTICK_1_Y_PIN = A1;
+const int JOYSTICK_2_X_PIN = A2;
+const int JOYSTICK_2_Y_PIN = A3;
+const int JOYSTICK_3_X_PIN = A4;
+const int JOYSTICK_3_Y_PIN = A5;
 
 // Pin definitions for LEDs (PWM outputs)
 const int LED_1_PIN = 3;  // Must be PWM pin
@@ -19,9 +22,12 @@ const int LED_2_PIN = 5;  // Must be PWM pin
 const int LED_3_PIN = 6;  // Must be PWM pin
 
 // Variables to store joystick values
-int joystick1Value = 0;
-int joystick2Value = 0;
-int joystick3Value = 0;
+int joystick1X = 0;
+int joystick1Y = 0;
+int joystick2X = 0;
+int joystick2Y = 0;
+int joystick3X = 0;
+int joystick3Y = 0;
 
 // Variables to store LED intensity values
 int led1Intensity = 0;
@@ -78,20 +84,30 @@ void loop() {
 
 void readJoysticks() {
   // Read analog values from joysticks (0-1023)
-  joystick1Value = analogRead(JOYSTICK_1_PIN);
-  joystick2Value = analogRead(JOYSTICK_2_PIN);
-  joystick3Value = analogRead(JOYSTICK_3_PIN);
+  // Each joystick has X and Y axis
+  joystick1X = analogRead(JOYSTICK_1_X_PIN);
+  joystick1Y = analogRead(JOYSTICK_1_Y_PIN);
+  joystick2X = analogRead(JOYSTICK_2_X_PIN);
+  joystick2Y = analogRead(JOYSTICK_2_Y_PIN);
+  joystick3X = analogRead(JOYSTICK_3_X_PIN);
+  joystick3Y = analogRead(JOYSTICK_3_Y_PIN);
 }
 
 void sendJoystickData() {
-  // Format: <J1,J2,J3>
+  // Format: <J1X,J1Y,J2X,J2Y,J3X,J3Y>
   Serial.print(START_MARKER);
   Serial.print("J");
-  Serial.print(joystick1Value);
+  Serial.print(joystick1X);
   Serial.print(SEPARATOR);
-  Serial.print(joystick2Value);
+  Serial.print(joystick1Y);
   Serial.print(SEPARATOR);
-  Serial.print(joystick3Value);
+  Serial.print(joystick2X);
+  Serial.print(SEPARATOR);
+  Serial.print(joystick2Y);
+  Serial.print(SEPARATOR);
+  Serial.print(joystick3X);
+  Serial.print(SEPARATOR);
+  Serial.print(joystick3Y);
   Serial.println(END_MARKER);
 }
 
