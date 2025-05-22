@@ -44,6 +44,53 @@ Push-Location $ServerDir
 python -m pip install -r requirements.txt
 Pop-Location
 
+# Function to apply JavaScript fixes to HTML file
+function Apply-JsFixes {
+    $htmlFile = Join-Path -Path $TemplatesDir -ChildPath "serrure.html"
+    $jsFixFile = Join-Path -Path $TemplatesDir -ChildPath "fixed_joystick.js"
+    $backupFile = "$htmlFile.backup"
+    
+    # If fixed_joystick.js doesn't exist, try fix_joystick.js
+    if (-not (Test-Path -Path $jsFixFile)) {
+        $jsFixFile = Join-Path -Path $TemplatesDir -ChildPath "fix_joystick.js"
+        if (-not (Test-Path -Path $jsFixFile)) {
+            Write-ColoredMessage "JavaScript fix file not found. HTML interface may not work correctly." $Red
+            return $false
+        }
+    }
+    
+    # Create backup if it doesn't exist
+    if (-not (Test-Path -Path $backupFile)) {
+        Copy-Item -Path $htmlFile -Destination $backupFile
+        Write-ColoredMessage "Created backup of HTML file at $backupFile" $Green
+    }
+    
+    # Check if fix is already applied
+    $htmlContent = Get-Content -Path $htmlFile -Raw
+    if ($htmlContent -match "fixed_joystick.js" -or $htmlContent -match "fix_joystick.js") {
+        Write-ColoredMessage "JavaScript fix already applied to HTML file." $Green
+        return $true
+    }
+    
+    # Read the JS fix
+    $jsContent = Get-Content -Path $jsFixFile -Raw
+    
+    # Find the closing body tag
+    if ($htmlContent -match "</body>") {
+        # Insert the script before the closing body tag
+        $scriptTag = "`n<script>`n// Fixed joystick handlers`n$jsContent`n</script>`n"
+        $newHtmlContent = $htmlContent -replace "</body>", "$scriptTag</body>"
+        
+        # Write the modified HTML
+        Set-Content -Path $htmlFile -Value $newHtmlContent
+        Write-ColoredMessage "Successfully applied JavaScript fix to HTML file." $Green
+        return $true
+    } else {
+        Write-ColoredMessage "Could not find </body> tag in HTML file." $Red
+        return $false
+    }
+}
+
 # Function to open a file in the default browser
 function Open-InBrowser {
     param (
@@ -62,6 +109,22 @@ function Start-WebSocketServer {
     Pop-Location
 }
 
+# Function to start the Lockbox with all fixes applied
+function Start-FixedLockbox {
+    # Apply JS fixes to HTML file
+    $fixesApplied = Apply-JsFixes
+    if (-not $fixesApplied) {
+        Write-ColoredMessage "Warning: Not all fixes could be applied." $Yellow
+    }
+    
+    # Open browser to HTML interface
+    $htmlPath = Join-Path -Path $TemplatesDir -ChildPath "serrure.html"
+    Open-InBrowser $htmlPath
+    
+    # Start WebSocket server
+    Start-WebSocketServer
+}
+
 # Display menu options
 function Show-Menu {
     Write-Host "`n================ Lockbox Simulator ================" -ForegroundColor Cyan
@@ -69,6 +132,7 @@ function Show-Menu {
     Write-Host "2. Open HTML Interface"
     Write-Host "3. Test Arduino Connection"
     Write-Host "4. Start Server & Open HTML Interface"
+    Write-Host "5. Start Server with All Fixes Applied"
     Write-Host "Q. Quit"
     Write-Host "=================================================" -ForegroundColor Cyan
     
@@ -97,6 +161,9 @@ function Show-Menu {
             
             # Start WebSocket server
             Start-WebSocketServer
+        }
+        "5" {
+            Start-FixedLockbox
         }
         "Q" {
             Write-ColoredMessage "Exiting..." $Yellow

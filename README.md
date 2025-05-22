@@ -80,8 +80,55 @@ The HTML interface (`templates/serrure.html`) provides a testing ground for the 
 - `/foundryvtt-module` - FoundryVTT integration
 - `/templates` - HTML test interface
 
-## Customization
+### Windows Quick Start
 
-- Adjust lock difficulty settings in the FoundryVTT module.js file
-- Modify the Arduino pins in the lockbox.ino file if using different hardware configuration
-- Add custom chest images in the foundryvtt-module/assets directory
+For Windows users, we've created a PowerShell script that automates the setup process:
+
+1. Run `start_lockbox.ps1` in PowerShell
+2. Select option 5: "Start Server with All Fixes Applied"
+3. The script will:
+   - Apply all JavaScript fixes to the HTML interface
+   - Start the WebSocket server
+   - Open the interface in your default browser
+
+### Testing Without Arduino
+
+To test the server without a physical Arduino connected:
+
+```
+python test_simulation.py
+```
+
+This script simulates joystick movements and LED controls, allowing you to test the interface functionality.
+
+## Troubleshooting
+
+### Arduino Connection Issues
+
+- Make sure the Arduino is properly connected via USB
+- Check that the correct COM port is detected (the server will attempt to auto-detect)
+- Ensure the Arduino sketch is properly uploaded
+- Try resetting the Arduino while the server is running
+
+### WebSocket Connection Issues
+
+- Check that the server is running on port 8765
+- Make sure your browser supports WebSockets
+- Try accessing the interface at http://localhost:8765
+- Look for any connection errors in the browser console
+
+### Joystick Display Issues
+
+If joysticks are not displaying correctly:
+
+1. Restart the server using option 5 in the PowerShell script
+2. Check the browser console for any JavaScript errors
+3. Verify that joystick values are being received by the server (check the server logs)
+
+## Recent Fixes
+
+1. Fixed signal handling issues on Windows with proper try/except blocks
+2. Improved joystick data format handling to support both single values and X,Y coordinates
+3. Enhanced error handling and logging for better diagnostics
+4. Fixed WebSocket activity indicators in the UI
+5. Added helper scripts for testing and deployment

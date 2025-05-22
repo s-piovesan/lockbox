@@ -1012,12 +1012,17 @@
         // Authentication state
         let isAuthenticated = false;
         let isAdmin = false;
-        
-        // Variables to track activity
+          // Variables to track activity
         let wsActivityTimeout = null;
         let joystickActivityTimeout = null;
         let ledActivityTimeout = null;
         let feedbackVisibleTimeout = null;
+        
+        // Feedback indicator elements
+        const feedbackIndicator = document.getElementById('feedback-indicator');
+        const websocketDot = document.getElementById('websocket-dot');
+        const joystickDot = document.getElementById('joystick-dot');
+        const ledDot = document.getElementById('led-dot');
         
         // Game elements
         const difficultySelect = document.getElementById('difficulty-select');
@@ -1060,66 +1065,108 @@
             while (logContainer.children.length > 50) {
                 logContainer.removeChild(logContainer.firstChild);
             }
-        }
-        
-        // Connect to WebSocket server
+        }        // Connect to WebSocket server
         function connectWebSocket() {
-            // Default to localhost if running locally
-            const host = window.location.hostname || 'localhost';
-            const wsUrl = `ws://${host}:8765`;
-            
-            // Show connecting status
-            wsStatus.textContent = 'Connecting...';
-            wsStatus.className = 'status';
-            wsIndicator.className = 'status-indicator';
-            document.querySelector('.status-container').classList.add('connecting');
-            
-            websocket = new WebSocket(wsUrl);
-            
-            websocket.onopen = function(event) {
-                wsStatus.textContent = 'Connected';
-                wsStatus.className = 'status connected';
-                wsIndicator.className = 'status-indicator connected';
-                document.querySelector('.status-container').classList.remove('connecting');
-                addLogEntry('WebSocket connection established');
+            try {
+                // Debug logs
+                addLogEntry('Tentative de connexion WebSocket...', 'info');
+                console.log('Tentative de connexion WebSocket...');
                 
-                // Send ping to check server status
-                sendMessage({
-                    type: 'ping'
-                });
-            };
-            
-            websocket.onclose = function(event) {
-                wsStatus.textContent = 'Disconnected';
-                wsStatus.className = 'status disconnected';
-                wsIndicator.className = 'status-indicator disconnected';
-                arduinoStatus.textContent = 'Unknown';
-                arduinoStatus.className = 'status disconnected';
-                arduinoIndicator.className = 'status-indicator disconnected';
+                // Récupère l'hôte depuis l'URL ou utilise localhost
+                const host = window.location.hostname || 'localhost';
+                console.log('Hôte: ' + host);
                 
-                // Reset authentication state
-                isAuthenticated = false;
-                isAdmin = false;
-                resetUIState();
+                // Utilise un port spécifique
+                const wsUrl = `ws://${host}:8765`;
+                console.log('URL WebSocket: ' + wsUrl);
                 
-                addLogEntry('WebSocket connection closed', 'error');
+                // Affiche l'état de connexion
+                wsStatus.textContent = 'Connexion en cours...';
+                wsStatus.className = 'status';
+                wsIndicator.className = 'status-indicator';
+                document.querySelector('.status-container').classList.add('connecting');
                 
-                // Try to reconnect after a delay
-                setTimeout(connectWebSocket, 3000);
-            };
-            
-            websocket.onerror = function(event) {
-                addLogEntry('WebSocket error', 'error');
-            };
-            
-            websocket.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    processWebSocketMessage(data);
-                } catch (error) {
-                    addLogEntry(`Error processing message: ${error}`, 'error');
-                }
-            };
+                // Réinitialise l'état de l'Arduino
+                updateArduinoStatus(null);
+                
+                // Crée une nouvelle connexion WebSocket
+                websocket = new WebSocket(wsUrl);
+                
+                // Définit un timeout pour la connexion
+                const connectionTimeout = setTimeout(() => {
+                    if (websocket.readyState !== WebSocket.OPEN) {
+                        addLogEntry('Timeout de connexion WebSocket', 'error');
+                        websocket.close();
+                    }
+                }, 5000);
+                
+                // Gestionnaire d'événement d'ouverture de connexion
+                websocket.onopen = function(event) {
+                    clearTimeout(connectionTimeout);
+                    wsStatus.textContent = 'Connecté';
+                    wsStatus.className = 'status connected';
+                    wsIndicator.className = 'status-indicator connected';
+                    document.querySelector('.status-container').classList.remove('connecting');
+                    addLogEntry('Connexion WebSocket établie', 'info');
+                    console.log('Connexion WebSocket établie');
+                    
+                    // Envoie un ping pour vérifier l'état du serveur
+                    sendMessage({
+                        type: 'ping'
+                    });
+                    
+                    // Demande l'état initial du serveur
+                    sendMessage({
+                        type: 'get_state'
+                    });
+                };
+                
+                // Gestionnaire d'événement de fermeture de connexion
+                websocket.onclose = function(event) {
+                    clearTimeout(connectionTimeout);
+                    wsStatus.textContent = 'Déconnecté';
+                    wsStatus.className = 'status disconnected';
+                    wsIndicator.className = 'status-indicator disconnected';
+                    arduinoStatus.textContent = 'Inconnu';
+                    arduinoStatus.className = 'status disconnected';
+                    arduinoIndicator.className = 'status-indicator disconnected';
+                    
+                    // Réinitialise l'état d'authentification
+                    isAuthenticated = false;
+                    isAdmin = false;
+                    resetUIState();
+                    
+                    addLogEntry('Connexion WebSocket fermée: ' + (event.reason || 'Raison inconnue'), 'error');
+                    console.log('Connexion WebSocket fermée: ' + (event.reason || 'Raison inconnue'));
+                    
+                    // Essaie de se reconnecter après un délai
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                // Gestionnaire d'événement d'erreur
+                websocket.onerror = function(event) {
+                    console.error('Erreur WebSocket', event);
+                    addLogEntry('Erreur WebSocket', 'error');
+                };
+                
+                // Gestionnaire d'événement de message
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Message reçu:', data);
+                        processWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Erreur de traitement du message:', error);
+                        addLogEntry(`Erreur de traitement du message: ${error}`, 'error');
+                    }
+                };
+            } catch (e) {
+                console.error('Erreur lors de la création de la connexion WebSocket:', e);
+                addLogEntry(`Erreur lors de la création de la connexion WebSocket: ${e}`, 'error');
+                
+                // Essaie de se reconnecter après un délai
+                setTimeout(connectWebSocket, 5000);
+            }
         }
         
         // Reset UI to initial state
@@ -1135,15 +1182,26 @@
             serverUptime.textContent = '-';
             clientCount.textContent = '-';
         }
-        
-        // Send a message to the WebSocket server
+          // Send a message to the WebSocket server
         function sendMessage(message) {
-            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            if (!websocket) {
+                console.error('Pas de connexion WebSocket disponible');
                 return false;
             }
             
-            websocket.send(JSON.stringify(message));
-            return true;
+            if (websocket.readyState !== WebSocket.OPEN) {
+                console.error('WebSocket non connecté. État:', websocket.readyState);
+                return false;
+            }
+            
+            try {
+                console.log('Envoi du message:', message);
+                websocket.send(JSON.stringify(message));
+                return true;
+            } catch (e) {
+                console.error('Erreur lors de l\'envoi du message:', e);
+                return false;
+            }
         }
         
         // Show feedback indicator
@@ -1273,15 +1331,19 @@
                     addLogEntry(`Unknown message type: ${data.type}`);
             }
         }
-        
-        // Update Arduino connection status
+          // Update Arduino connection status
         function updateArduinoStatus(connected) {
-            if (connected) {
+            if (connected === true) {
                 arduinoStatus.textContent = 'Connected';
                 arduinoStatus.className = 'status connected';
                 arduinoIndicator.className = 'status-indicator connected';
-            } else {
+            } else if (connected === false) {
                 arduinoStatus.textContent = 'Disconnected';
+                arduinoStatus.className = 'status disconnected';
+                arduinoIndicator.className = 'status-indicator disconnected';
+            } else {
+                // When connected is null or undefined (unknown state)
+                arduinoStatus.textContent = 'Unknown';
                 arduinoStatus.className = 'status disconnected';
                 arduinoIndicator.className = 'status-indicator disconnected';
             }
@@ -1362,56 +1424,51 @@
                         addLogEntry('Arduino reset failed', 'error');
                     }
                     break;
-            }
+            }        }
+          // Note: updateJoystickDisplay function is defined below
+          // Helper function to normalize joystick value to x,y coordinates
+        function normalizeJoystickValue(value) {
+            // Assuming the joystick value is 0-1023 range
+            // Map joystick value to coordinates
+            // This is a simplified approach - in real life, you'd map based on joystick behavior
+            
+            // For simplicity, set y to center (512) and use the received value as x
+            return { 
+                x: value,        // Use the received value directly for X
+                y: 512           // Set Y to center (neutral position)
+            };
         }
-        
-        // Update joystick display based on data
-        function updateJoystickDisplay(joysticks) {
-            if (!joysticks) return;
-            
-            trackJoystickActivity();
-            
-            // Update display for each joystick
-            if (joysticks.joystick1X !== undefined && joysticks.joystick1Y !== undefined) {
-                updateJoystick(0, joysticks.joystick1X, joysticks.joystick1Y);
-            }
-            
-            if (joysticks.joystick2X !== undefined && joysticks.joystick2Y !== undefined) {
-                updateJoystick(1, joysticks.joystick2X, joysticks.joystick2Y);
-            }
-            
-            if (joysticks.joystick3X !== undefined && joysticks.joystick3Y !== undefined) {
-                updateJoystick(2, joysticks.joystick3X, joysticks.joystick3Y);
-            }
-        }
-        
-        // Update a single joystick's visual representation
-        function updateJoystick(index, value) {
+          // Update a single joystick's visual representation
+        function updateJoystick(index, x, y) {
             // If this joystick is locked, don't update its visual position
             if (joystickLocked[index]) return;
             
+            // Calculate the combined value or use X as primary value
+            // Using X value for display
+            const value = x;
+            
             // Track changes for highlighting
-            const oldValue = parseInt(joystickValues[index].textContent);
+            const oldValue = parseInt(joystickValuesX[index].textContent);
             const valueChanged = Math.abs(oldValue - value) > 5;
             
             // Update the value display with highlight effect if changed significantly
-            joystickValues[index].textContent = value;
+            joystickValuesX[index].textContent = value;
             if (valueChanged) {
-                joystickValues[index].classList.add('value-change');
+                joystickValuesX[index].classList.add('value-change');
                 setTimeout(() => {
-                    joystickValues[index].classList.remove('value-change');
+                    joystickValuesX[index].classList.remove('value-change');
                 }, 500);
             }
             
-            // Calculate position (Arduino analog value is 0-1023)
+            // Calculate position for X and Y (Arduino analog values are 0-1023)
             // Map to a position within the joystick visual (-30px to +30px)
-            const centerX = 0;
-            const centerY = (value - 512) / 512 * 30; // Map to -30 to +30 pixels
+            const centerX = (x - 512) / 512 * 30; // Map to -30 to +30 pixels
+            const centerY = (y - 512) / 512 * 30; // Map to -30 to +30 pixels
             
             // Apply the position to the joystick handle
             joystickHandles[index].style.transform = `translate(calc(-50% + ${centerX}px), calc(-50% + ${centerY}px))`;
             
-            // Update the indicator bar
+            // Update the indicator bar - use X value for now
             // Map the value from 0-1023 to 0-100%
             const percentage = Math.min(100, Math.max(0, (value / 1023) * 100));
             joystickIndicators[index].style.width = `${percentage}%`;
@@ -1835,5 +1892,191 @@
         // Initialize empty feedback indicator
         showFeedbackIndicator();
     </script>
+
+<script>
+// Fixed joystick handlers
+// Updated joystick handling functions for lockbox
+
+// Helper function to normalize joystick value to x,y coordinates
+function normalizeJoystickValue(value) {
+    // For single-value joysticks (when we only have one value per joystick)
+    // Convert to x,y coordinates for consistent handling
+    return { 
+        x: value,
+        y: 512 // Center Y position
+    };
+}
+
+// Update joystick display based on data from the server
+function updateJoystickDisplay(joysticks) {
+    if (!joysticks) return;
+    
+    trackJoystickActivity();
+    
+    // Check if we have X,Y pairs (new format)
+    if (joysticks.joystick1X !== undefined && joysticks.joystick1Y !== undefined) {
+        // We have X,Y coordinates directly
+        console.log("Received X,Y format:", joysticks);
+        updateJoystick(0, joysticks.joystick1X, joysticks.joystick1Y);
+        updateJoystick(1, joysticks.joystick2X, joysticks.joystick2Y);
+        updateJoystick(2, joysticks.joystick3X, joysticks.joystick3Y);
+    } 
+    // Fallback to single value if X,Y pairs are not available (old format)
+    else if (joysticks.joystick1 !== undefined) {
+        console.log("Received single value format:", joysticks);
+        // Convert single values to X,Y pairs
+        const j1 = normalizeJoystickValue(joysticks.joystick1);
+        const j2 = normalizeJoystickValue(joysticks.joystick2);
+        const j3 = normalizeJoystickValue(joysticks.joystick3);
+        
+        updateJoystick(0, j1.x, j1.y);
+        updateJoystick(1, j2.x, j2.y);
+        updateJoystick(2, j3.x, j3.y);
+    }
+}
+
+// Update a single joystick's visual representation
+function updateJoystick(index, x, y) {
+    // If this joystick is locked, don't update its visual position
+    if (joystickLocked[index]) return;
+    
+    // Update the X value display
+    joystickValuesX[index].textContent = `X: ${x}`;
+    
+    // Update the Y value display
+    joystickValuesY[index].textContent = `Y: ${y}`;
+    
+    // Calculate position for X and Y (Arduino analog values are 0-1023)
+    // Map to a position within the joystick visual (-30px to +30px)
+    const centerX = (x - 512) / 512 * 30; // Map to -30 to +30 pixels
+    const centerY = (y - 512) / 512 * 30; // Map to -30 to +30 pixels
+    
+    // Apply the position to the joystick handle
+    joystickHandles[index].style.transform = `translate(calc(-50% + ${centerX}px), calc(-50% + ${centerY}px))`;
+    
+    // Update the indicator bar - use X value for now
+    // Map the value from 0-1023 to 0-100%
+    const percentage = Math.min(100, Math.max(0, (x / 1023) * 100));
+    joystickIndicators[index].style.width = `${percentage}%`;
+    
+    // Change the color based on value
+    // Green for middle range, yellow for off center, red for extremes
+    let color = '#4CAF50'; // Default green
+    
+    const distance = Math.abs(x - 512);
+    if (distance > 400) {
+        color = '#f44336'; // Red for extreme values
+    } else if (distance > 200) {
+        color = '#FFC107'; // Yellow for moderate offset
+    }
+    
+    joystickIndicators[index].style.background = `linear-gradient(to right, ${color}, ${color})`;
+    
+    // Game logic - only process if game is active
+    if (gameActive && index < difficulty) {
+        // Determine which zone the joystick is in
+        const zone = determineZone(x, y);
+        currentZones[index] = zone;
+        
+        // Update zone visualization
+        updateZoneVisualization(index, zone);
+        
+        // Check if this is the target zone
+        if (zone === targetZones[index] && !joystickLocked[index]) {
+            // Start or continue lock timer
+            if (!lockTimers[index]) {
+                lockTimers[index] = setTimeout(() => {
+                    // Lock this joystick
+                    joystickLocked[index] = true;
+                    
+                    // Update visuals
+                    const joystickEl = document.querySelector(`.joystick:nth-child(${index+1}) .joystick-visual`);
+                    joystickEl.classList.add('locked');
+                    
+                    // Mark the locked zone
+                    const zoneEl = document.querySelector(`.joystick:nth-child(${index+1}) .zone-segment[data-zone="${zone}"]`);
+                    if (zoneEl) {
+                        zoneEl.classList.add('locked');
+                    }
+                    
+                    addLogEntry(`Joystick ${index+1} locked in position ${zone}`);
+                    
+                    // Check if all required joysticks are locked
+                    checkGameCompletion();
+                    
+                    // Clear the timer reference
+                    lockTimers[index] = null;
+                }, 500); // 500ms hold time for lock
+            }
+        } else {
+            // Cancel lock timer if joystick moved away from target
+            if (lockTimers[index]) {
+                clearTimeout(lockTimers[index]);
+                lockTimers[index] = null;
+            }
+        }
+        
+        // Update LEDs based on proximity to target
+        updateLEDs();
+    }
+}
+
+// Enhanced function to determine joystick zone using both X and Y coordinates
+function determineZone(x, y) {
+    // Arduino values are 0-1023, with center at 512
+    // Convert to -1 to 1 range
+    const normalizedX = (x - 512) / 512;
+    const normalizedY = (y - 512) / 512;
+    
+    // Calculate distance from center
+    const distance = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+    
+    // If joystick is near center, return empty zone
+    if (distance < 0.2) {
+        return '';
+    }
+    
+    // Calculate angle in radians and convert to degrees
+    const angle = Math.atan2(-normalizedY, normalizedX) * (180 / Math.PI);
+    
+    // Normalize angle to 0-360
+    const normalizedAngle = angle < 0 ? 360 + angle : angle;
+    
+    // Determine zone based on angle
+    if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return 'E';
+    if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return 'NE';
+    if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return 'N';
+    if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return 'NW';
+    if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return 'W';
+    if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return 'SW';
+    if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return 'S';
+    if (normalizedAngle >= 292.5 && normalizedAngle < 337.5) return 'SE';
+    
+    return ''; // Fallback
+}
+
+// Function to send current LED values to the server
+function sendLEDValues() {
+    sendMessage({
+        type: 'led_control',
+        leds: {
+            led1: parseInt(ledControls[0].value),
+            led2: parseInt(ledControls[1].value),
+            led3: parseInt(ledControls[2].value)
+        }
+    });
+}
+
+// Fixed WebSocket activity function
+function trackWebSocketActivity() {
+    if (websocketDot) {
+        wsActivityTimeout = showActivity(websocketDot, wsActivityTimeout);
+    } else {
+        console.error("websocketDot element not found");
+    }
+}
+
+</script>
 </body>
 </html>
+

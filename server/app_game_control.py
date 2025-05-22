@@ -20,7 +20,7 @@ init()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed from INFO to DEBUG for more detailed logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("lockbox_controller.log"),
@@ -48,12 +48,17 @@ class LockboxController:
         self.running = False
         self.auto_reconnect = auto_reconnect
         self.reconnect_delay = 5  # seconds
-        
-        # Data from joysticks
+          # Data from joysticks
         self.joystick_values = {
-            "joystick1": 0,
-            "joystick2": 0,
-            "joystick3": 0
+            "joystick1": 512,
+            "joystick2": 512,
+            "joystick3": 512,
+            "joystick1X": 512,  # Added X and Y coordinates for direct use
+            "joystick1Y": 512,
+            "joystick2X": 512,
+            "joystick2Y": 512,
+            "joystick3X": 512,
+            "joystick3Y": 512
         }
         
         # LED intensity values
@@ -165,14 +170,19 @@ class LockboxController:
                     if self.auto_reconnect:
                         self._attempt_reconnect()
                         continue
-                
-                # Read data from Arduino if connected
+                  # Read data from Arduino if connected
                 if self.connected and self.serial_connection.in_waiting > 0:
-                    line = self.serial_connection.readline().decode('utf-8').strip()
-                    if line:  # Only process non-empty lines
-                        self._process_arduino_message(line)
-                        self.last_data_time = time.time()
-                        reconnect_attempts = 0  # Reset reconnect counter on successful data
+                    try:
+                        line = self.serial_connection.readline().decode('utf-8').strip()
+                        if line:  # Only process non-empty lines
+                            logger.debug(f"Raw data from Arduino: {line}")
+                            self._process_arduino_message(line)
+                            self.last_data_time = time.time()
+                            reconnect_attempts = 0  # Reset reconnect counter on successful data
+                    except UnicodeDecodeError:
+                        logger.warning(f"{Fore.YELLOW}Failed to decode Arduino data, skipping{Style.RESET_ALL}")
+                    except Exception as e:
+                        logger.error(f"{Fore.RED}Error processing Arduino data: {e}{Style.RESET_ALL}")
                 
                 # Small delay to prevent CPU overload
                 time.sleep(0.01)
@@ -222,23 +232,44 @@ class LockboxController:
         # Check for start and end markers
         if message.startswith('<') and message.endswith('>'):
             # Extract content between markers
-            content = message[1:-1]
-            
-            # Handle joystick data (format: J1023,512,0)
+            content = message[1:-1]            # Handle joystick data (format: J1X,J1Y,J2X,J2Y,J3X,J3Y)
             if content.startswith('J'):
                 try:
                     # Parse joystick values
                     values = content[1:].split(',')
-                    if len(values) == 3:
-                        self.joystick_values["joystick1"] = int(values[0])
-                        self.joystick_values["joystick2"] = int(values[1])
-                        self.joystick_values["joystick3"] = int(values[2])
+                    if len(values) == 6:
+                        # Arduino sends X and Y for each joystick
+                        j1x = int(values[0])
+                        j1y = int(values[1])
+                        j2x = int(values[2])
+                        j2y = int(values[3])
+                        j3x = int(values[4])
+                        j3y = int(values[5])
+                        
+                        # Calculate average or use X value as primary
+                        # For this implementation, we're using X values
+                        self.joystick_values["joystick1"] = j1x
+                        self.joystick_values["joystick2"] = j2x
+                        self.joystick_values["joystick3"] = j3x
+                        
+                        # Store X,Y pairs if needed
+                        self.joystick_values["joystick1X"] = j1x
+                        self.joystick_values["joystick1Y"] = j1y
+                        self.joystick_values["joystick2X"] = j2x
+                        self.joystick_values["joystick2Y"] = j2y
+                        self.joystick_values["joystick3X"] = j3x
+                        self.joystick_values["joystick3Y"] = j3y
+                        
+                        # Additional debug info
+                        logger.debug(f"Raw joystick data - J1: ({j1x},{j1y}), J2: ({j2x},{j2y}), J3: ({j3x},{j3y})")
                         
                         # Call the callback with new joystick data
                         if self.joystick_callback:
                             self.joystick_callback(self.joystick_values)
                             
                         logger.debug(f"Joystick values: {self.joystick_values}")
+                    else:
+                        logger.warning(f"{Fore.YELLOW}Unexpected joystick data format: {content}, found {len(values)} values{Style.RESET_ALL}")
                 except Exception as e:
                     logger.error(f"{Fore.RED}Error parsing joystick data: {e}{Style.RESET_ALL}")
     
