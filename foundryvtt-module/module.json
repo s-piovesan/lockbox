@@ -2,10 +2,11 @@
   "id": "lockbox-simulator",
   "title": "Lockbox Simulator",
   "description": "A module that provides a lockpicking simulation for roleplaying games, connected to a physical Arduino lockbox device.",
-  "version": "1.0.0",
+  "version": "2.4.0",
   "compatibility": {
     "minimum": "10",
-    "verified": "11"
+    "verified": "12",
+    "maximum": "12"
   },
   "authors": [
     {
@@ -16,8 +17,7 @@
   ],
   "relationships": {
     "requires": []
-  },
-  "esmodules": [
+  },  "esmodules": [
     "module.js"
   ],
   "styles": [],
@@ -26,6 +26,14 @@
       "lang": "en",
       "name": "English",
       "path": "languages/en.json"
+    }
+  ],
+  "packs": [],
+  "media": [
+    {
+      "type": "setup",
+      "url": "assets/Chest-Wooden.png",
+      "thumbnail": "assets/Chest-Wooden.png"
     }
   ],
   "socket": true,

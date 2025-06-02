@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoundryVTT Lockbox Simulator Emulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            overflow-x: auto;
+            padding: 20px;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* FoundryVTT Scene Simulation Area */
+        .scene-container {
+            flex: 1;
+            background-color: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .scene-header {
+            background-color: #333;
+            padding: 10px 15px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scene-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .scene-info {
+            font-size: 0.9em;
+            color: #ccc;
+        }
+
+        /* Main simulation area - FoundryVTT scene dimensions */
+        .simulation-area {
+            width: 1152px;
+            height: 768px;
+            position: relative;
+            background: linear-gradient(135deg, #2d3436 0%, #636e72 100%);
+            border: 1px solid #555;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        /* Background image overlay */
+        .background-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("../foundryvtt-module/assets/scene_1152x768.png") no-repeat center;
+            background-size: cover;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        /* Pin columns in simulation encart (635x200 at 444,525) */
+        .pin-columns-container {
+            position: absolute;
+            left: 444px;
+            top: 525px;
+            width: 635px;
+            height: 200px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .pin-column {
+            position: relative;
+            width: 40px;
+            height: 160px;
+            background: linear-gradient(to bottom, #666, #888);
+            border: 2px solid #999;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pin-column::before {
+            content: attr(data-pin-id);
+            position: absolute;
+            top: -25px;
+            font-size: 12px;
+            color: #ccc;
+            font-weight: bold;
+        }
+
+        /* Pin indicator that moves based on joystick position */
+        .pin-indicator {
+            position: absolute;
+            width: 24px;
+            height: 110px;
+            background: url("../foundryvtt-module/assets/pin_24x110.png") no-repeat center;
+            border: 1px solid #c0392b;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+            opacity: 0.1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .pin-indicator.visible {
+            opacity: 0.9;
+        }
+
+        .pin-indicator.locked {
+            border-color: #229954;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+
+        /* Target zones - shown when pins are in extreme positions */
+        .target-zone {
+            position: absolute;
+            width: 36px;
+            height: 8px;
+            background: rgba(255, 235, 59, 0.6);
+            border: 1px solid #f1c40f;
+            border-radius: 2px;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .target-zone.visible {
+            opacity: 1;
+            animation: pulse-target 2s infinite;
+        }
+
+        @keyframes pulse-target {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Control panel */
+        .control-panel {
+            width: 380px;
+            background-color: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #444;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Connection status */
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+
+        .status {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #f44336;
+            transition: background-color 0.3s ease;
+        }
+
+        .status.connected .status-indicator {
+            background-color: #4CAF50;
+        }
+
+        .status.connected {
+            color: #4CAF50;
+        }
+
+        .status.disconnected {
+            color: #f44336;
+        }
+
+        /* Joystick controls */
+        .joystick-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .joystick-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+
+        .joystick-label {
+            min-width: 80px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        .joystick-visual {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #444 70%, #333 100%);
+            border-radius: 50%;
+            position: relative;
+            border: 2px solid #555;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+        }
+
+        .joystick-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(to bottom, #6ede72, #4CAF50);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .joystick-value {
+            min-width: 60px;
+            font-family: 'Courier New', monospace;
+            background-color: #222;
+            padding: 5px 8px;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 0.9em;
+            border: 1px solid #555;
+        }
+
+        .extreme-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #666;
+            border: 2px solid #555;
+            transition: all 0.3s ease;
+        }
+
+        .extreme-indicator.active {
+            background-color: #ff6b6b;
+            border-color: #e74c3c;
+            box-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+        }
+
+        /* LED controls */
+        .led-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .led-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+
+        .led-label {
+            min-width: 50px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .led-visual {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #333;
+            border: 2px solid #555;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+        }
+
+        .led-visual.on {
+            background-color: #ff6b6b;
+            border-color: #e74c3c;
+            box-shadow: 0 0 12px rgba(255, 107, 107, 0.6);
+        }
+
+        .led-control {
+            flex: 1;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .led-control::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .led-value {
+            min-width: 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            text-align: center;
+        }
+
+        /* Game controls */
+        .game-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .difficulty-label {
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        .difficulty-select {
+            flex: 1;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.9em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .game-button {
+            flex: 1;
+            padding: 10px 15px;
+            background: linear-gradient(to bottom, #4CAF50, #45a049);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .game-button:hover {
+            background: linear-gradient(to bottom, #5cbf60, #4CAF50);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .game-button.reset {
+            background: linear-gradient(to bottom, #f44336, #d32f2f);
+        }
+
+        .game-button.reset:hover {
+            background: linear-gradient(to bottom, #f66, #f44336);
+        }
+
+        .game-status {
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Log container */
+        .log-container {
+            max-height: 150px;
+            overflow-y: auto;
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            color: #4CAF50;
+        }
+
+        .log-entry.info {
+            color: #74b9ff;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1400px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .control-panel {
+                width: 100%;
+                max-width: 1152px;
+                margin: 0 auto;
+            }
+            
+            .simulation-area {
+                transform: scale(0.8);
+                transform-origin: top center;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .simulation-area {
+                transform: scale(0.6);
+            }
+        }
+
+        /* Animation for pin locking */
+        @keyframes lock-success {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .pin-indicator.locking {
+            animation: lock-success 0.5s ease;
+        }
+
+        /* Tooltips for better UX */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- FoundryVTT Scene Simulation -->
+        <div class="scene-container">
+            <div class="scene-header">
+                <div class="scene-title">Lockbox - <span id="current-difficulty">Easy Lock</span></div>
+                <div class="scene-info">1152×768 • FoundryVTT Scene Emulation</div>
+            </div>
+            
+            <!-- Main simulation area mimicking FoundryVTT scene dimensions -->
+            <div class="simulation-area">
+                <div class="background-overlay"></div>
+                
+                <!-- Pin columns positioned in simulation encart -->
+                <div class="pin-columns-container">
+                    <div class="pin-column" data-pin-id="Pin 1">
+                        <div class="pin-indicator" id="pin1-indicator"></div>
+                        <div class="target-zone" id="target1-zone"></div>
+                    </div>
+                    <div class="pin-column" data-pin-id="Pin 2">
+                        <div class="pin-indicator" id="pin2-indicator"></div>
+                        <div class="target-zone" id="target2-zone"></div>
+                    </div>
+                    <div class="pin-column" data-pin-id="Pin 3">
+                        <div class="pin-indicator" id="pin3-indicator"></div>
+                        <div class="target-zone" id="target3-zone"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <!-- Connection Status -->
+            <div class="panel-section">
+                <div class="section-title">Connection Status</div>
+                <div class="status-container">
+                    <div class="status disconnected" id="ws-status">
+                        <div class="status-indicator"></div>
+                        <span>WebSocket: Disconnected</span>
+                    </div>
+                    <div class="status disconnected" id="arduino-status">
+                        <div class="status-indicator"></div>
+                        <span>Arduino: Unknown</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Joystick Values -->
+            <div class="panel-section">
+                <div class="section-title">Joystick Positions</div>
+                <div class="joystick-container">
+                    <div class="joystick-row">
+                        <div class="joystick-label">J1:</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick1-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick1-value">512</div>
+                        <div class="extreme-indicator tooltip" id="extreme1-indicator" 
+                             data-tooltip="Extreme position indicator"></div>
+                    </div>
+                    <div class="joystick-row">
+                        <div class="joystick-label">J2:</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick2-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick2-value">512</div>
+                        <div class="extreme-indicator tooltip" id="extreme2-indicator" 
+                             data-tooltip="Extreme position indicator"></div>
+                    </div>
+                    <div class="joystick-row">
+                        <div class="joystick-label">J3:</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-handle" id="joystick3-handle"></div>
+                        </div>
+                        <div class="joystick-value" id="joystick3-value">512</div>
+                        <div class="extreme-indicator tooltip" id="extreme3-indicator" 
+                             data-tooltip="Extreme position indicator"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LED Status -->
+            <div class="panel-section">
+                <div class="section-title">LED Status</div>
+                <div class="led-container">
+                    <div class="led-row">
+                        <div class="led-label">LED 1:</div>
+                        <div class="led-visual" id="led1-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led1-control">
+                        <div class="led-value" id="led1-value">0</div>
+                    </div>
+                    <div class="led-row">
+                        <div class="led-label">LED 2:</div>
+                        <div class="led-visual" id="led2-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led2-control">
+                        <div class="led-value" id="led2-value">0</div>
+                    </div>
+                    <div class="led-row">
+                        <div class="led-label">LED 3:</div>
+                        <div class="led-visual" id="led3-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led3-control">
+                        <div class="led-value" id="led3-value">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Controls -->
+            <div class="panel-section">
+                <div class="section-title">Game Controls</div>
+                <div class="game-controls">
+                    <div class="difficulty-selector">
+                        <div class="difficulty-label">Difficulty:</div>
+                        <select class="difficulty-select" id="difficulty-select">
+                            <option value="easy">Easy Lock</option>
+                            <option value="medium">Medium Lock</option>
+                            <option value="hard">Hard Lock</option>
+                            <option value="master">Master Lock</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button class="game-button" id="start-game-btn">Start Game</button>
+                        <button class="game-button reset" id="reset-game-btn">Reset</button>
+                    </div>
+                    <div class="game-status" id="game-status">Ready to start</div>
+                </div>            </div>
+
+            <!-- Audio Test Controls -->
+            <div class="panel-section">
+                <div class="section-title">Audio Test</div>
+                <div class="game-controls">
+                    <div class="button-group">
+                        <button class="game-button" id="test-pin-audio-btn">Test Pin Sound</button>
+                        <button class="game-button" id="test-victory-audio-btn">Test Victory</button>
+                    </div>
+                    <div style="font-size: 0.8em; color: #ccc; margin-top: 8px; text-align: center;">
+                        🔊 Audio matches FoundryVTT module
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="panel-section">
+                <div class="section-title">Activity Log</div>
+                <div class="log-container" id="log-container">
+                    <div class="log-entry info">System initialized</div>
+                    <div class="log-entry">Attempting WebSocket connection...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration matching FoundryVTT module
+        const LOCKBOX_CONFIG = {
+            wsServer: {
+                host: "localhost",
+                port: 8765
+            },
+            extremePositions: {
+                low: { min: 50, max: 200 },
+                high: { min: 824, max: 974 }
+            },
+            minSpacing: 120,
+            centerPosition: 512,
+            extremeThreshold: 200 // Distance from center to be considered extreme
+        };
+
+        // Difficulty settings matching FoundryVTT module
+        const LOCK_DIFFICULTIES = {
+            "easy": {
+                name: "Easy Lock",
+                tolerance: 100,
+                tint: "#4CAF50"
+            },
+            "medium": {
+                name: "Medium Lock", 
+                tolerance: 75,
+                tint: "#FFC107"
+            },
+            "hard": {
+                name: "Hard Lock",
+                tolerance: 50,
+                tint: "#FF9800"
+            },
+            "master": {
+                name: "Master Lock",
+                tolerance: 25,
+                tint: "#f44336"
+            }
+        };        // Global state
+        let websocket = null;
+        let websocketConnected = false;
+        let gameActive = false;
+        let currentDifficulty = "easy";
+        let joystickState = { joystick1: 512, joystick2: 512, joystick3: 512 };
+        let ledState = { led1: 0, led2: 0, led3: 0 };
+        let targetPositions = [];
+        let pinLockStates = [false, false, false];
+        let pinLockTimers = [null, null, null];
+        let pinInTargetStart = [null, null, null];
+        let lastValidExtremePositions = [512, 512, 512]; // Mémoriser dernières positions extrêmes valides
+
+        // DOM elements
+        const elements = {
+            wsStatus: document.getElementById('ws-status'),
+            arduinoStatus: document.getElementById('arduino-status'),
+            currentDifficulty: document.getElementById('current-difficulty'),
+            difficultySelect: document.getElementById('difficulty-select'),
+            startGameBtn: document.getElementById('start-game-btn'),
+            resetGameBtn: document.getElementById('reset-game-btn'),
+            gameStatus: document.getElementById('game-status'),
+            logContainer: document.getElementById('log-container'),
+            
+            joystickHandles: [
+                document.getElementById('joystick1-handle'),
+                document.getElementById('joystick2-handle'),
+                document.getElementById('joystick3-handle')
+            ],
+            joystickValues: [
+                document.getElementById('joystick1-value'),
+                document.getElementById('joystick2-value'),
+                document.getElementById('joystick3-value')
+            ],
+            extremeIndicators: [
+                document.getElementById('extreme1-indicator'),
+                document.getElementById('extreme2-indicator'),
+                document.getElementById('extreme3-indicator')
+            ],
+            
+            pinIndicators: [
+                document.getElementById('pin1-indicator'),
+                document.getElementById('pin2-indicator'),
+                document.getElementById('pin3-indicator')
+            ],
+            targetZones: [
+                document.getElementById('target1-zone'),
+                document.getElementById('target2-zone'),
+                document.getElementById('target3-zone')
+            ],
+            
+            ledControls: [
+                document.getElementById('led1-control'),
+                document.getElementById('led2-control'),
+                document.getElementById('led3-control')
+            ],
+            ledVisuals: [
+                document.getElementById('led1-visual'),
+                document.getElementById('led2-visual'),
+                document.getElementById('led3-visual')
+            ],
+            ledValues: [
+                document.getElementById('led1-value'),
+                document.getElementById('led2-value'),
+                document.getElementById('led3-value')
+            ]
+        };
+
+        // Utility functions
+        function addLogEntry(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            elements.logContainer.appendChild(entry);
+            elements.logContainer.scrollTop = elements.logContainer.scrollHeight;
+            
+            // Limit log entries to prevent memory issues
+            const entries = elements.logContainer.children;
+            if (entries.length > 100) {
+                elements.logContainer.removeChild(entries[0]);
+            }
+        }
+
+        function generateRandomTargetPositions(tolerance, difficulty = "easy") {
+            const config = LOCKBOX_CONFIG.extremePositions;
+            const { low, high } = config;
+            const positions = [];
+            const maxAttempts = 20;
+            
+            addLogEntry(`Generating targets for ${difficulty} (tolerance: ±${tolerance})`);
+            
+            for (let i = 0; i < 3; i++) {
+                let position;
+                let attempts = 0;
+                let isValid = false;
+                
+                while (!isValid && attempts < maxAttempts) {
+                    attempts++;
+                    
+                    // Randomly choose between low and high extreme zones
+                    const useLowZone = Math.random() < 0.5;
+                    const zone = useLowZone ? low : high;
+                    
+                    // Generate random position within the chosen zone
+                    position = Math.floor(Math.random() * (zone.max - zone.min + 1)) + zone.min;
+                    
+                    // Check minimum spacing from existing positions
+                    const hasValidSpacing = positions.length === 0 || 
+                        !positions.some(existingPos => Math.abs(position - existingPos) < LOCKBOX_CONFIG.minSpacing);
+                    
+                    if (hasValidSpacing) {
+                        isValid = true;
+                    }
+                }
+                
+                // Simple fallback - alternate between zones with fixed spacing
+                if (!isValid) {
+                    if (i % 2 === 0) {
+                        position = low.min + (i * 50);
+                    } else {
+                        position = high.min + ((i - 1) * 50);
+                    }
+                }
+                
+                positions.push(position);
+                addLogEntry(`Target ${i + 1}: ${position} (±${tolerance})`);
+            }
+            
+            return positions;
+        }        function isExtremePosition(value) {
+            const distance = Math.abs(value - LOCKBOX_CONFIG.centerPosition);
+            const threshold = LOCKBOX_CONFIG.extremeThreshold; // 200
+            
+            // Zone extrême complète (au-delà du seuil)
+            if (distance >= threshold) {
+                return { isExtreme: true, intensity: 1.0 };
+            }
+            
+            // Zone de transition souple (1/4 du rayon = 50 pixels de plus)
+            const transitionZone = threshold * 0.75; // 150 au lieu de 200
+            if (distance >= transitionZone) {
+                // Gradient d'intensité dans la zone de transition
+                const transitionProgress = (distance - transitionZone) / (threshold - transitionZone);
+                return { isExtreme: true, intensity: 0.5 + (transitionProgress * 0.5) };
+            }
+            
+            return { isExtreme: false, intensity: 0 };
+        }
+
+        function updateJoystickDisplay(joysticks) {
+            if (!joysticks) return;
+            
+            // Update individual joystick displays
+            for (let i = 0; i < 3; i++) {
+                const joystickKey = `joystick${i + 1}`;
+                const value = joysticks[joystickKey] || 512;
+                
+                // Update global state
+                joystickState[joystickKey] = value;
+                
+                // Update visual display
+                updateSingleJoystick(i, value);
+            }
+            
+            // Update pin positions if game is active
+            if (gameActive) {
+                updatePinPositions();
+            }
+        }        function updateSingleJoystick(index, value) {
+            // Update value display
+            elements.joystickValues[index].textContent = value;
+            
+            // Update joystick handle position
+            const offset = ((value - 512) / 512) * 20; // Scale to visual range
+            elements.joystickHandles[index].style.transform = 
+                `translate(calc(-50% + ${offset}px), -50%)`;
+            
+            // Check extreme position with new graduated system
+            const extremeCheck = isExtremePosition(value);
+            if (extremeCheck.isExtreme) {
+                // Mémoriser cette position comme dernière position extrême valide
+                lastValidExtremePositions[index] = value;
+                elements.extremeIndicators[index].classList.add('active');
+                // Ajuster l'opacité selon l'intensité de la zone extrême
+                elements.extremeIndicators[index].style.opacity = extremeCheck.intensity;
+            } else {
+                elements.extremeIndicators[index].classList.remove('active');
+                elements.extremeIndicators[index].style.opacity = 0.3;
+                
+                // Si on n'est plus en position extrême mais qu'on a une position mémorisée,
+                // utiliser cette position pour les calculs de pins
+                if (gameActive && lastValidExtremePositions[index] !== 512) {
+                    // Garder la dernière position extrême pour le calcul des pins
+                    // (ne pas réinitialiser immédiatement)
+                }
+            }
+        }        function updatePinPositions() {
+            const difficultyData = LOCK_DIFFICULTIES[currentDifficulty];
+            const tolerance = difficultyData.tolerance;
+            
+            for (let i = 0; i < 3; i++) {
+                const currentJoystickValue = joystickState[`joystick${i + 1}`];
+                const targetValue = targetPositions[i];
+                const pinIndicator = elements.pinIndicators[i];
+                const targetZone = elements.targetZones[i];
+                
+                // Check if pin is locked
+                if (pinLockStates[i]) {
+                    continue; // Skip locked pins
+                }
+                
+                // Utiliser la position actuelle si extrême, sinon la dernière position extrême mémorisée
+                const extremeCheck = isExtremePosition(currentJoystickValue);
+                let effectiveJoystickValue;
+                let isCurrentlyAtExtreme = false;
+                
+                if (extremeCheck.isExtreme) {
+                    // Actuellement en position extrême - utiliser la position actuelle
+                    effectiveJoystickValue = currentJoystickValue;
+                    lastValidExtremePositions[i] = currentJoystickValue;
+                    isCurrentlyAtExtreme = true;
+                } else if (lastValidExtremePositions[i] !== 512) {
+                    // Pas en position extrême mais on a une position mémorisée - la conserver
+                    effectiveJoystickValue = lastValidExtremePositions[i];
+                    isCurrentlyAtExtreme = false;
+                } else {
+                    // Aucune position extrême - cacher le pin
+                    pinIndicator.classList.remove('visible');
+                    targetZone.classList.remove('visible');
+                    pinIndicator.style.opacity = '0.1';
+                    pinInTargetStart[i] = null; // Reset timer
+                    continue;
+                }
+                
+                // Show pin and target zone
+                pinIndicator.classList.add('visible');
+                targetZone.classList.add('visible');
+                  // Calculate distance from target
+                const absoluteDistanceFromTarget = Math.abs(effectiveJoystickValue - targetValue);
+                const isInTargetZone = absoluteDistanceFromTarget <= tolerance;
+                const isLockable = isCurrentlyAtExtreme && isInTargetZone;
+                
+                // NEW: Target at top, distance moves pin down (matching FoundryVTT module)
+                let yPosition;
+                
+                if (isLockable) {
+                    // Pin is LOCKABLE (extreme position + in target) - TOP POSITION
+                    yPosition = 20; // Top of the pin column with small margin
+                } else if (isInTargetZone) {
+                    // In target but not at extreme - still at top
+                    yPosition = 20; // Still at top but different opacity
+                } else {
+                    // Not in target - calculate position based on distance from target
+                    // SIMPLIFIED: Target is always at the top, distance moves pin down
+                    const maxEffectiveDistance = 512; // Half of total range (0-1024)
+                    
+                    // Calculate downward movement based on distance from target
+                    const normalizedDistance = Math.min(absoluteDistanceFromTarget / maxEffectiveDistance, 1.0);
+                    const availableHeight = 140; // Pin column height minus margins (160 - 20 top - margins)
+                    const downwardOffset = normalizedDistance * availableHeight;
+                    
+                    // Position: start from top and move down based on distance
+                    yPosition = 20 + downwardOffset;
+                }
+                
+                // Clamp to pin column bounds
+                yPosition = Math.max(10, Math.min(150, yPosition));
+                pinIndicator.style.top = `${yPosition}px`;
+                  // UPDATED OPACITY LOGIC: Matching FoundryVTT module visibility system
+                let alpha;
+                
+                if (isLockable) {
+                    // Pin is LOCKABLE (extreme position + in target) - MAXIMUM VISIBILITY
+                    alpha = 1.0; // Fully visible when lockable
+                    
+                    // Start lock timer only if currently at extreme position and not already started
+                    if (!pinInTargetStart[i]) {
+                        pinInTargetStart[i] = Date.now();
+                        addLogEntry(`Pin ${i + 1} entering target zone (distance: ${absoluteDistanceFromTarget})`);
+                    } else {
+                        // Check if pin has been in target for required time
+                        const timeInTarget = Date.now() - pinInTargetStart[i];
+                        if (timeInTarget >= 1000 && !pinLockStates[i]) {
+                            // Lock the pin
+                            lockPin(i);
+                        }
+                    }
+                } else if (isInTargetZone) {
+                    // In target but not at extreme - moderate visibility
+                    alpha = 0.6; // Moderate visibility - shows target found but not lockable
+                    pinInTargetStart[i] = null; // Reset timer
+                } else {
+                    // Not in target - lower visibility based on extreme status
+                    if (isCurrentlyAtExtreme) {
+                        // At extreme but not in target - low visibility
+                        alpha = 0.3; // Low visibility to show pin is active but not correctly positioned
+                    } else {
+                        // Using memorized position - very low visibility
+                        alpha = 0.15; // Very low visibility for memorized positions
+                    }
+                    pinInTargetStart[i] = null; // Reset timer
+                }
+                  pinIndicator.style.opacity = alpha;
+                
+                // Position target zone at the TOP (matching new target-at-top logic)
+                targetZone.style.top = '20px'; // Target always at top position
+            }
+              // Check if all pins are locked
+            if (pinLockStates.every(state => state)) {
+                addLogEntry('🔓 UNLOCKED! All pins are set correctly!', 'success');
+                playVictorySound();
+                elements.gameStatus.textContent = 'UNLOCKED! Chest opened successfully!';
+                gameActive = false;
+            }
+        }        function lockPin(index) {
+            pinLockStates[index] = true;
+            elements.pinIndicators[index].classList.add('locked');
+            elements.pinIndicators[index].classList.add('locking');
+            
+            addLogEntry(`Pin ${index + 1} locked in position!`, 'success');
+            playPinLockSound();
+            
+            // Remove locking animation after completion
+            setTimeout(() => {
+                elements.pinIndicators[index].classList.remove('locking');
+            }, 500);
+            
+            // Light up corresponding LED
+            updateLEDFromServer(index, 255);
+        }
+
+        function updateLEDDisplay(leds) {
+            if (!leds) return;
+            
+            for (let i = 0; i < 3; i++) {
+                const ledKey = `led${i + 1}`;
+                const value = leds[ledKey] || 0;
+                
+                // Update global state
+                ledState[ledKey] = value;
+                
+                // Update visual display
+                elements.ledValues[i].textContent = value;
+                elements.ledControls[i].value = value;
+                
+                // Update LED visual
+                if (value > 0) {
+                    elements.ledVisuals[i].classList.add('on');
+                    elements.ledVisuals[i].style.opacity = value / 255;
+                } else {
+                    elements.ledVisuals[i].classList.remove('on');
+                    elements.ledVisuals[i].style.opacity = 0.3;
+                }
+            }
+        }
+
+        function updateLEDFromServer(index, value) {
+            ledState[`led${index + 1}`] = value;
+            elements.ledValues[index].textContent = value;
+            elements.ledControls[index].value = value;
+            
+            if (value > 0) {
+                elements.ledVisuals[index].classList.add('on');
+                elements.ledVisuals[index].style.opacity = value / 255;
+            } else {
+                elements.ledVisuals[index].classList.remove('on');
+                elements.ledVisuals[index].style.opacity = 0.3;
+            }
+        }
+
+        // WebSocket functions
+        function connectToWebSocketServer() {
+            const wsUrl = `ws://${LOCKBOX_CONFIG.wsServer.host}:${LOCKBOX_CONFIG.wsServer.port}`;
+            
+            try {
+                addLogEntry(`Connecting to ${wsUrl}...`);
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    websocketConnected = true;
+                    elements.wsStatus.className = 'status connected';
+                    elements.wsStatus.innerHTML = '<div class="status-indicator"></div><span>WebSocket: Connected</span>';
+                    addLogEntry('WebSocket connected successfully', 'success');
+                };
+                
+                websocket.onclose = function(event) {
+                    websocketConnected = false;
+                    elements.wsStatus.className = 'status disconnected';
+                    elements.wsStatus.innerHTML = '<div class="status-indicator"></div><span>WebSocket: Disconnected</span>';
+                    addLogEntry('WebSocket disconnected', 'error');
+                    
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectToWebSocketServer, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    addLogEntry(`WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        processWebSocketMessage(data);
+                    } catch (error) {
+                        addLogEntry(`Error parsing WebSocket message: ${error.message}`, 'error');
+                    }
+                };
+                
+            } catch (error) {
+                addLogEntry(`Failed to create WebSocket connection: ${error.message}`, 'error');
+                setTimeout(connectToWebSocketServer, 3000);
+            }
+        }
+
+        function processWebSocketMessage(data) {
+            if (!data.type) return;
+            
+            switch (data.type) {
+                case 'joystick_update':
+                    updateJoystickDisplay(data.joysticks);
+                    break;
+                    
+                case 'led_update':
+                    updateLEDDisplay(data.leds);
+                    break;
+                    
+                case 'arduino_status':
+                    updateArduinoStatus(data.connected);
+                    break;
+                    
+                case 'state':
+                    updateJoystickDisplay(data.joysticks);
+                    updateLEDDisplay(data.leds);
+                    updateArduinoStatus(data.arduino_connected);
+                    break;
+                    
+                default:
+                    addLogEntry(`Unknown message type: ${data.type}`);
+            }
+        }
+
+        function updateArduinoStatus(connected) {
+            if (connected === true) {
+                elements.arduinoStatus.className = 'status connected';
+                elements.arduinoStatus.innerHTML = '<div class="status-indicator"></div><span>Arduino: Connected</span>';
+            } else if (connected === false) {
+                elements.arduinoStatus.className = 'status disconnected';
+                elements.arduinoStatus.innerHTML = '<div class="status-indicator"></div><span>Arduino: Disconnected</span>';
+            } else {
+                elements.arduinoStatus.className = 'status disconnected';
+                elements.arduinoStatus.innerHTML = '<div class="status-indicator"></div><span>Arduino: Unknown</span>';
+            }
+        }
+
+        function sendMessage(message) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify(message));
+                return true;
+            }
+            return false;
+        }
+
+        function sendLEDControl(led1, led2, led3) {
+            const message = {
+                type: 'led_control',
+                leds: { led1, led2, led3 }
+            };
+            
+            if (sendMessage(message)) {
+                addLogEntry(`LED control sent: ${led1}, ${led2}, ${led3}`);
+            } else {
+                addLogEntry('Failed to send LED control - not connected', 'error');
+            }        }
+
+        // Game control functions
+        function startGame() {
+            const difficulty = elements.difficultySelect.value;
+            currentDifficulty = difficulty;
+            
+            const difficultyData = LOCK_DIFFICULTIES[difficulty];
+            elements.currentDifficulty.textContent = difficultyData.name;
+            
+            // Generate random target positions
+            targetPositions = generateRandomTargetPositions(difficultyData.tolerance, difficulty);
+            
+            // Reset game state
+            pinLockStates = [false, false, false];
+            pinInTargetStart = [null, null, null];
+            lastValidExtremePositions = [512, 512, 512]; // Reset memorized positions
+            gameActive = true;
+            
+            // Reset visuals
+            elements.pinIndicators.forEach(pin => {
+                pin.classList.remove('locked', 'visible');
+                pin.style.opacity = '0.1';
+            });
+            
+            elements.targetZones.forEach(zone => {
+                zone.classList.remove('visible');
+            });
+            
+            // Turn off all LEDs
+            sendLEDControl(0, 0, 0);
+            
+            elements.gameStatus.textContent = `Find the correct positions for all 3 pins - ${difficultyData.name}`;            addLogEntry(`Game started - ${difficultyData.name}`, 'success');
+        }
+
+        function resetGame() {
+            gameActive = false;
+            pinLockStates = [false, false, false];
+            pinInTargetStart = [null, null, null];
+            lastValidExtremePositions = [512, 512, 512]; // Reset memorized positions
+            targetPositions = [];
+            
+            // Reset visuals
+            elements.pinIndicators.forEach(pin => {
+                pin.classList.remove('locked', 'visible');
+                pin.style.opacity = '0.1';
+            });
+            
+            elements.targetZones.forEach(zone => {
+                zone.classList.remove('visible');
+            });
+            
+            // Turn off all LEDs
+            sendLEDControl(0, 0, 0);
+            
+            elements.gameStatus.textContent = 'Game reset. Ready to start a new game.';
+            addLogEntry('Game reset', 'info');
+        }        // Event listeners
+        elements.startGameBtn.addEventListener('click', startGame);
+        elements.resetGameBtn.addEventListener('click', resetGame);
+
+        // Audio test button event listeners
+        document.getElementById('test-pin-audio-btn').addEventListener('click', function() {
+            playPinLockSound();
+        });
+        
+        document.getElementById('test-victory-audio-btn').addEventListener('click', function() {
+            playVictorySound();
+        });
+
+        // LED control event listeners
+        elements.ledControls.forEach((control, index) => {
+            control.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                elements.ledValues[index].textContent = value;
+                
+                if (value > 0) {
+                    elements.ledVisuals[index].classList.add('on');
+                    elements.ledVisuals[index].style.opacity = value / 255;
+                } else {
+                    elements.ledVisuals[index].classList.remove('on');
+                    elements.ledVisuals[index].style.opacity = 0.3;
+                }
+                
+                // Send LED control message
+                const leds = {
+                    led1: parseInt(elements.ledControls[0].value),
+                    led2: parseInt(elements.ledControls[1].value),
+                    led3: parseInt(elements.ledControls[2].value)
+                };
+                
+                sendMessage({
+                    type: 'led_control',
+                    leds: leds
+                });
+            });
+        });
+
+        // Simulation mode for testing without hardware
+        function startSimulationMode() {
+            let simulationInterval = setInterval(() => {
+                if (!gameActive) {
+                    clearInterval(simulationInterval);
+                    return;
+                }
+                
+                // Simulate random joystick movements
+                const simJoysticks = {
+                    joystick1: Math.floor(Math.random() * 1024),
+                    joystick2: Math.floor(Math.random() * 1024),
+                    joystick3: Math.floor(Math.random() * 1024)
+                };
+                
+                updateJoystickDisplay(simJoysticks);
+            }, 200);        }
+
+        // Audio functions to match FoundryVTT module
+        function playPinLockSound() {
+            try {
+                const audio = new Audio('../foundryvtt-module/assets/pin_unlocked.mp3');
+                audio.volume = 0.5;
+                audio.play().catch(error => {
+                    addLogEntry(`Pin lock audio error: ${error.message}`, 'error');
+                });
+                addLogEntry('🔊 Pin lock sound played', 'info');
+            } catch (error) {
+                addLogEntry(`Pin lock audio failed: ${error.message}`, 'error');
+            }
+        }
+
+        function playVictorySound() {
+            try {
+                const audio = new Audio('../foundryvtt-module/assets/chest_unlocked.mp3');
+                audio.volume = 0.5;
+                audio.play().catch(error => {
+                    addLogEntry(`Victory audio error: ${error.message}`, 'error');
+                });
+                addLogEntry('🎉 Victory sound played', 'success');
+            } catch (error) {
+                addLogEntry(`Victory audio failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Keyboard shortcuts for testing
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey) {
+                switch(event.key) {
+                    case 's':
+                        event.preventDefault();
+                        startGame();
+                        break;
+                    case 'r':
+                        event.preventDefault();
+                        resetGame();
+                        break;
+                    case 't':
+                        event.preventDefault();
+                        startSimulationMode();
+                        addLogEntry('Simulation mode started', 'info');
+                        break;
+                }
+            }
+        });
+
+        // Initialize the application
+        function initialize() {
+            addLogEntry('FoundryVTT Lockbox Emulator initialized', 'success');
+            addLogEntry('Shortcuts: Ctrl+S (Start), Ctrl+R (Reset), Ctrl+T (Test mode)');
+            connectToWebSocketServer();
+        }
+
+        // Start the application
+        initialize();
+    </script>
+</body>
+</html>

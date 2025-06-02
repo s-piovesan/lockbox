@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lockbox Simulator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+            text-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+        }
+        
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        
+        .status {
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            color: #4CAF50;
+        }
+        
+        .status.disconnected {
+            color: #f44336;
+        }
+        
+        .lockbox-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+        
+        .joysticks-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .joystick {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30%;
+        }
+        
+        .joystick-label {
+            margin-bottom: 5px;
+        }
+        
+        .joystick-value {
+            font-family: monospace;
+            background-color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            width: 80px;
+            text-align: center;
+        }
+        
+        .joystick-visual {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #444 70%, #333 100%);
+            border-radius: 50%;
+            position: relative;
+            margin: 10px 0;
+            border: 2px solid #555;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .joystick-handle {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(to bottom, #6ede72 0%, #4CAF50 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .joystick-position {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .joystick-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 90%;
+            height: 90%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        
+        .joystick-crosshair::before,
+        .joystick-crosshair::after {
+            content: '';
+            position: absolute;
+            background-color: rgba(255,255,255,0.1);
+        }
+        
+        .joystick-crosshair::before {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+        }
+        
+        .joystick-crosshair::after {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+        }
+        
+        /* Joystick zone visualization */
+        .joystick-zones {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .zone-segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .zone-segment.active {
+            opacity: 0.3;
+        }
+        
+        .zone-segment.target {
+            background-color: rgba(255, 235, 59, 0.3);
+            animation: pulse-zone 2s infinite;
+        }
+        
+        .zone-segment.locked {
+            background-color: rgba(76, 175, 80, 0.3);
+            opacity: 0.5;
+            animation: locked-pulse 2s infinite;
+        }
+        
+        .zone-n {
+            top: 0;
+            left: 25%;
+            border-top-left-radius: 50px;
+            border-top-right-radius: 50px;
+            transform-origin: bottom center;
+        }
+        
+        .zone-ne {
+            top: 0;
+            right: 0;
+            border-top-right-radius: 50px;
+        }
+        
+        .zone-e {
+            top: 25%;
+            right: 0;
+            border-top-right-radius: 50px;
+            border-bottom-right-radius: 50px;
+            transform-origin: left center;
+        }
+        
+        .zone-se {
+            bottom: 0;
+            right: 0;
+            border-bottom-right-radius: 50px;
+        }
+        
+        .zone-s {
+            bottom: 0;
+            left: 25%;
+            border-bottom-left-radius: 50px;
+            border-bottom-right-radius: 50px;
+            transform-origin: top center;
+        }
+        
+        .zone-sw {
+            bottom: 0;
+            left: 0;
+            border-bottom-left-radius: 50px;
+        }
+        
+        .zone-w {
+            top: 25%;
+            left: 0;
+            border-top-left-radius: 50px;
+            border-bottom-left-radius: 50px;
+            transform-origin: right center;
+        }
+        
+        .zone-nw {
+            top: 0;
+            left: 0;
+            border-top-left-radius: 50px;
+        }
+        
+        @keyframes pulse-zone {
+            0% {
+                opacity: 0.2;
+            }
+            50% {
+                opacity: 0.4;
+            }
+            100% {
+                opacity: 0.2;
+            }
+        }
+        
+        @keyframes locked-pulse {
+            0% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.6;
+            }
+            100% {
+                opacity: 0.4;
+            }
+        }
+        
+        .joystick-visual.locked .joystick-handle {
+            background: linear-gradient(to bottom, #8BC34A 0%, #4CAF50 100%);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .led-visual.blinking {
+            animation: led-blink 1s infinite;
+        }
+        
+        @keyframes led-blink {
+            0% {
+                opacity: 0.7;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.7;
+            }
+        }
+        
+        .leds-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .led {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30%;
+        }
+        
+        .led-label {
+            margin-bottom: 5px;
+        }
+        
+        .led-visual {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            position: relative;
+            border: 1px solid rgba(76, 175, 80, 0.2);
+            background: radial-gradient(circle at center, rgba(76, 175, 80, 0.8) 0%, rgba(76, 175, 80, 0.3) 70%, transparent 100%);
+        }
+        
+        .led-visual::after {
+            content: '';
+            position: absolute;
+            top: 30%;
+            left: 30%;
+            width: 20%;
+            height: 20%;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
+            filter: blur(2px);
+        }
+        
+        .led-control {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .led-value {
+            font-family: monospace;
+            background-color: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            width: 80px;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+        .log-container {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+        }
+        
+        .log-entry.info {
+            color: #4CAF50;
+        }
+        
+        .log-entry.error {
+            color: #f44336;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #555;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        /* Enhance slider appearance */
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            background: linear-gradient(to right, #333, #4CAF50);
+            border-radius: 4px;
+        }
+        
+        input[type="range"]::-moz-range-track {
+            height: 8px;
+            background: linear-gradient(to right, #333, #4CAF50);
+            border-radius: 4px;
+        }
+        
+        /* Add animated effects */
+        .joystick-handle:active {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+        }
+        
+        .value-change {
+            animation: highlight 0.5s ease-out;
+        }
+        
+        @keyframes highlight {
+            0% {
+                background-color: rgba(76, 175, 80, 0.5);
+            }
+            100% {
+                background-color: #333;
+            }
+        }
+        
+        /* Feedback for connection states */
+        .status-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #4CAF50, transparent);
+            transform: translateX(-100%);
+            animation: loading-bar 2s infinite;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .status-container.connecting::before {
+            opacity: 1;
+        }
+        
+        @keyframes loading-bar {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+        
+        /* Real-time visual feedback containers */
+        .feedback-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            padding: 10px;
+            max-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transform: translateY(150%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+        
+        .feedback-indicator.visible {
+            transform: translateY(0);
+        }
+        
+        .feedback-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feedback-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+        }
+        
+        .feedback-dot.active {
+            animation: pulse-small 1s infinite;
+        }
+        
+        .feedback-label {
+            font-size: 0.8em;
+            color: #ccc;
+        }
+        
+        @keyframes pulse-small {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .admin-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+            display: none; /* Hidden by default */
+        }
+        
+        .admin-panel h2 {
+            color: #E91E63;
+            margin-top: 0;
+        }
+        
+        .admin-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .admin-button {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .admin-button:hover {
+            background-color: #E91E63;
+        }
+        
+        .auth-container {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+        
+        .auth-container input {
+            background-color: #444;
+            border: 1px solid #666;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            margin-right: 10px;
+            outline: none;
+        }
+        
+        .auth-container button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .server-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: space-around;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .server-info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .server-info-label {
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .server-info-value {
+            font-weight: bold;
+        }
+        
+        .joystick-indicator {
+            width: 100%;
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+        
+        .indicator-bar {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+            border-radius: 4px;
+            transition: width 0.2s ease, transform 0.2s ease;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-indicator.connected {
+            background-color: #4CAF50;
+            box-shadow: 0 0 5px #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.disconnected {
+            background-color: #f44336;
+            box-shadow: 0 0 5px #f44336;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 5px rgba(76, 175, 80, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+
+        /* Game controls */
+        .game-controls {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .control-input {
+            background-color: #444;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            flex-grow: 1;
+        }
+        
+        .game-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .game-button:hover {
+            background-color: #66BB6A;
+        }
+        
+        #reset-game-button {
+            background-color: #F44336;
+        }
+        
+        #reset-game-button:hover {
+            background-color: #EF5350;
+        }
+        
+        .game-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .status-label {
+            font-weight: bold;
+        }
+        
+        .status-text {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lockbox Simulator</h1>
+        
+        <!-- Authentication panel -->
+        <div class="auth-container" id="auth-container">
+            <p>Authentication required to access the lockbox controller.</p>
+            <input type="password" id="auth-token" placeholder="Auth Token">
+            <button id="auth-button">Authenticate</button>
+        </div>
+        
+        <div class="status-container">
+            <div><span class="status-indicator" id="ws-indicator"></span>WebSocket Status: <span id="ws-status" class="status disconnected">Disconnected</span></div>
+            <div><span class="status-indicator" id="arduino-indicator"></span>Arduino Status: <span id="arduino-status" class="status disconnected">Unknown</span></div>
+        </div>
+        
+        <!-- Server Info Section -->
+        <div class="server-info" id="server-info">
+            <div class="server-info-item">
+                <div class="server-info-label">Session ID</div>
+                <div class="server-info-value" id="session-id">-</div>
+            </div>
+            <div class="server-info-item">
+                <div class="server-info-label">Uptime</div>
+                <div class="server-info-value" id="server-uptime">-</div>
+            </div>
+            <div class="server-info-item">
+                <div class="server-info-label">Clients</div>
+                <div class="server-info-value" id="client-count">-</div>
+            </div>
+        </div>
+        
+        <!-- Game Controls Section -->
+        <div class="game-controls">
+            <div class="section-title">Game Configuration</div>
+            <div class="control-group">
+                <label for="difficulty-select">Difficulty:</label>
+                <select id="difficulty-select" class="control-input">
+                    <option value="1">Easy (1 joystick)</option>
+                    <option value="2">Medium (2 joysticks)</option>
+                    <option value="3">Hard (3 joysticks)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <button id="start-game-button" class="game-button">Start Game</button>
+                <button id="reset-game-button" class="game-button">Reset</button>
+            </div>
+            <div class="game-status">
+                <div class="status-label">Game Status:</div>
+                <div id="game-status-text" class="status-text">Ready to start</div>
+            </div>
+        </div>
+        
+        <div class="lockbox-container">
+            <div>
+                <div class="section-title">Joysticks (Arduino Pins A0-A5)</div>
+                <div class="joysticks-container">
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 1 (A0/A1)</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-crosshair"></div>
+                            <div class="joystick-handle" id="joystick1-handle"></div>
+                            <div class="joystick-position" id="joystick1-position"></div>
+                            <div class="joystick-zones">
+                                <div class="zone-segment zone-n" data-zone="N"></div>
+                                <div class="zone-segment zone-ne" data-zone="NE"></div>
+                                <div class="zone-segment zone-e" data-zone="E"></div>
+                                <div class="zone-segment zone-se" data-zone="SE"></div>
+                                <div class="zone-segment zone-s" data-zone="S"></div>
+                                <div class="zone-segment zone-sw" data-zone="SW"></div>
+                                <div class="zone-segment zone-w" data-zone="W"></div>
+                                <div class="zone-segment zone-nw" data-zone="NW"></div>
+                            </div>
+                        </div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick1-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick1-valueY">Y: 0</div>
+                        </div>
+                        <div class="joystick-indicator">
+                            <div class="indicator-bar" id="joystick1-indicator"></div>
+                        </div>
+                    </div>
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 2 (A2/A3)</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-crosshair"></div>
+                            <div class="joystick-handle" id="joystick2-handle"></div>
+                            <div class="joystick-position" id="joystick2-position"></div>
+                            <div class="joystick-zones">
+                                <div class="zone-segment zone-n" data-zone="N"></div>
+                                <div class="zone-segment zone-ne" data-zone="NE"></div>
+                                <div class="zone-segment zone-e" data-zone="E"></div>
+                                <div class="zone-segment zone-se" data-zone="SE"></div>
+                                <div class="zone-segment zone-s" data-zone="S"></div>
+                                <div class="zone-segment zone-sw" data-zone="SW"></div>
+                                <div class="zone-segment zone-w" data-zone="W"></div>
+                                <div class="zone-segment zone-nw" data-zone="NW"></div>
+                            </div>
+                        </div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick2-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick2-valueY">Y: 0</div>
+                        </div>
+                        <div class="joystick-indicator">
+                            <div class="indicator-bar" id="joystick2-indicator"></div>
+                        </div>
+                    </div>
+                    <div class="joystick">
+                        <div class="joystick-label">Joystick 3 (A4/A5)</div>
+                        <div class="joystick-visual">
+                            <div class="joystick-crosshair"></div>
+                            <div class="joystick-handle" id="joystick3-handle"></div>
+                            <div class="joystick-position" id="joystick3-position"></div>
+                            <div class="joystick-zones">
+                                <div class="zone-segment zone-n" data-zone="N"></div>
+                                <div class="zone-segment zone-ne" data-zone="NE"></div>
+                                <div class="zone-segment zone-e" data-zone="E"></div>
+                                <div class="zone-segment zone-se" data-zone="SE"></div>
+                                <div class="zone-segment zone-s" data-zone="S"></div>
+                                <div class="zone-segment zone-sw" data-zone="SW"></div>
+                                <div class="zone-segment zone-w" data-zone="W"></div>
+                                <div class="zone-segment zone-nw" data-zone="NW"></div>
+                            </div>
+                        </div>
+                        <div class="joystick-values">
+                            <div class="joystick-value" id="joystick3-valueX">X: 0</div>
+                            <div class="joystick-value" id="joystick3-valueY">Y: 0</div>
+                        </div>
+                        <div class="joystick-indicator">
+                            <div class="indicator-bar" id="joystick3-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="section-title">LEDs (Arduino Pins D3, D5, D6)</div>
+                <div class="leds-container">
+                    <div class="led">
+                        <div class="led-label">LED 1</div>
+                        <div class="led-visual" id="led1-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led1-control">
+                        <div class="led-value" id="led1-value">0</div>
+                    </div>
+                    <div class="led">
+                        <div class="led-label">LED 2</div>
+                        <div class="led-visual" id="led2-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led2-control">
+                        <div class="led-value" id="led2-value">0</div>
+                    </div>
+                    <div class="led">
+                        <div class="led-label">LED 3</div>
+                        <div class="led-visual" id="led3-visual"></div>
+                        <input type="range" min="0" max="255" value="0" class="led-control" id="led3-control">
+                        <div class="led-value" id="led3-value">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <div class="section-title">Game Configuration</div>
+            <div class="control-group">
+                <label for="difficulty-select">Difficulty:</label>
+                <select id="difficulty-select" class="control-input">
+                    <option value="1">Easy (1 joystick)</option>
+                    <option value="2">Medium (2 joysticks)</option>
+                    <option value="3">Hard (3 joysticks)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <button id="start-game-button" class="game-button">Start Game</button>
+                <button id="reset-game-button" class="game-button">Reset</button>
+            </div>
+            <div class="game-status">
+                <div class="status-label">Game Status:</div>
+                <div id="game-status-text" class="status-text">Ready to start</div>
+            </div>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div class="admin-panel" id="admin-panel">
+            <h2>Admin Controls</h2>
+            <div class="admin-controls">
+                <button class="admin-button" id="diagnostic-button">Run Diagnostic</button>
+                <button class="admin-button" id="reset-arduino-button">Reset Arduino</button>
+                <button class="admin-button" id="server-status-button">Server Status</button>
+                <button class="admin-button" id="client-list-button">Client List</button>
+            </div>
+        </div>
+        
+        <div class="log-container" id="log-container"></div>
+        
+        <div class="feedback-indicator" id="feedback-indicator">
+            <div class="feedback-item">
+                <div class="feedback-dot" id="websocket-dot"></div>
+                <div class="feedback-label">WebSocket Activity</div>
+            </div>
+            <div class="feedback-item">
+                <div class="feedback-dot" id="joystick-dot"></div>
+                <div class="feedback-label">Joystick Movement</div>
+            </div>
+            <div class="feedback-item">
+                <div class="feedback-dot" id="led-dot"></div>
+                <div class="feedback-label">LED Control</div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        Lockbox Simulator for Roleplaying Games &copy; 2025
+    </footer>
+    
+    <script>
+        // WebSocket connection
+        let websocket = null;
+        const wsStatus = document.getElementById('ws-status');
+        const wsIndicator = document.getElementById('ws-indicator');
+        const arduinoStatus = document.getElementById('arduino-status');
+        const arduinoIndicator = document.getElementById('arduino-indicator');
+        const logContainer = document.getElementById('log-container');
+        const authContainer = document.getElementById('auth-container');
+        const adminPanel = document.getElementById('admin-panel');
+        
+        // Authentication elements
+        const authToken = document.getElementById('auth-token');
+        const authButton = document.getElementById('auth-button');
+        
+        // Server info elements
+        const sessionId = document.getElementById('session-id');
+        const serverUptime = document.getElementById('server-uptime');
+        const clientCount = document.getElementById('client-count');
+        
+        // Admin control buttons
+        const diagnosticButton = document.getElementById('diagnostic-button');
+        const resetArduinoButton = document.getElementById('reset-arduino-button');
+        const serverStatusButton = document.getElementById('server-status-button');
+        const clientListButton = document.getElementById('client-list-button');
+        
+        // LED elements
+        const ledControls = [
+            document.getElementById('led1-control'),
+            document.getElementById('led2-control'),
+            document.getElementById('led3-control')
+        ];
+        
+        const ledValues = [
+            document.getElementById('led1-value'),
+            document.getElementById('led2-value'),
+            document.getElementById('led3-value')
+        ];
+        
+        const ledVisuals = [
+            document.getElementById('led1-visual'),
+            document.getElementById('led2-visual'),
+            document.getElementById('led3-visual')
+        ];
+        
+        // Joystick elements
+        const joystickHandles = [
+            document.getElementById('joystick1-handle'),
+            document.getElementById('joystick2-handle'),
+            document.getElementById('joystick3-handle')
+        ];
+        
+        const joystickValuesX = [
+            document.getElementById('joystick1-valueX'),
+            document.getElementById('joystick2-valueX'),
+            document.getElementById('joystick3-valueX')
+        ];
+        
+        const joystickValuesY = [
+            document.getElementById('joystick1-valueY'),
+            document.getElementById('joystick2-valueY'),
+            document.getElementById('joystick3-valueY')
+        ];
+        
+        const joystickIndicators = [
+            document.getElementById('joystick1-indicator'),
+            document.getElementById('joystick2-indicator'),
+            document.getElementById('joystick3-indicator')
+        ];
+        
+        // Authentication state
+        let isAuthenticated = false;
+        let isAdmin = false;
+          // Variables to track activity
+        let wsActivityTimeout = null;
+        let joystickActivityTimeout = null;
+        let ledActivityTimeout = null;
+        let feedbackVisibleTimeout = null;
+        
+        // Feedback indicator elements
+        const feedbackIndicator = document.getElementById('feedback-indicator');
+        const websocketDot = document.getElementById('websocket-dot');
+        const joystickDot = document.getElementById('joystick-dot');
+        const ledDot = document.getElementById('led-dot');
+        
+        // Game elements
+        const difficultySelect = document.getElementById('difficulty-select');
+        const startGameButton = document.getElementById('start-game-button');
+        const resetGameButton = document.getElementById('reset-game-button');
+        const gameStatusText = document.getElementById('game-status-text');
+        
+        // Game state variables
+        let gameActive = false;
+        let difficulty = 1; // 1-3 joysticks
+        let targetZones = []; // Target zones for each joystick
+        let joystickLocked = [false, false, false]; // Locking status for each joystick
+        let lockTimers = [null, null, null]; // Timers for lock confirmation
+        let currentZones = ['', '', '']; // Current zone for each joystick
+        
+        // All possible zones
+        const ZONES = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+        
+        // Zone distances - how far each zone is from each other (0 = same, 4 = opposite)
+        const ZONE_DISTANCES = {
+            'N': { 'N': 0, 'NE': 1, 'E': 2, 'SE': 3, 'S': 4, 'SW': 3, 'W': 2, 'NW': 1 },
+            'NE': { 'N': 1, 'NE': 0, 'E': 1, 'SE': 2, 'S': 3, 'SW': 4, 'W': 3, 'NW': 2 },
+            'E': { 'N': 2, 'NE': 1, 'E': 0, 'SE': 1, 'S': 2, 'SW': 3, 'W': 4, 'NW': 3 },
+            'SE': { 'N': 3, 'NE': 2, 'E': 1, 'SE': 0, 'S': 1, 'SW': 2, 'W': 3, 'NW': 4 },
+            'S': { 'N': 4, 'NE': 3, 'E': 2, 'SE': 1, 'S': 0, 'SW': 1, 'W': 2, 'NW': 3 },
+            'SW': { 'N': 3, 'NE': 4, 'E': 3, 'SE': 2, 'S': 1, 'SW': 0, 'W': 1, 'NW': 2 },
+            'W': { 'N': 2, 'NE': 3, 'E': 4, 'SE': 3, 'S': 2, 'SW': 1, 'W': 0, 'NW': 1 },
+            'NW': { 'N': 1, 'NE': 2, 'E': 3, 'SE': 4, 'S': 3, 'SW': 2, 'W': 1, 'NW': 0 }
+        };
+        
+        // Add log entry
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Limit log entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }        // Connect to WebSocket server
+        function connectWebSocket() {
+            try {
+                // Debug logs
+                addLogEntry('Tentative de connexion WebSocket...', 'info');
+                console.log('Tentative de connexion WebSocket...');
+                
+                // Récupère l'hôte depuis l'URL ou utilise localhost
+                const host = window.location.hostname || 'localhost';
+                console.log('Hôte: ' + host);
+                
+                // Utilise un port spécifique
+                const wsUrl = `ws://${host}:8765`;
+                console.log('URL WebSocket: ' + wsUrl);
+                
+                // Affiche l'état de connexion
+                wsStatus.textContent = 'Connexion en cours...';
+                wsStatus.className = 'status';
+                wsIndicator.className = 'status-indicator';
+                document.querySelector('.status-container').classList.add('connecting');
+                
+                // Réinitialise l'état de l'Arduino
+                updateArduinoStatus(null);
+                
+                // Crée une nouvelle connexion WebSocket
+                websocket = new WebSocket(wsUrl);
+                
+                // Définit un timeout pour la connexion
+                const connectionTimeout = setTimeout(() => {
+                    if (websocket.readyState !== WebSocket.OPEN) {
+                        addLogEntry('Timeout de connexion WebSocket', 'error');
+                        websocket.close();
+                    }
+                }, 5000);
+                
+                // Gestionnaire d'événement d'ouverture de connexion
+                websocket.onopen = function(event) {
+                    clearTimeout(connectionTimeout);
+                    wsStatus.textContent = 'Connecté';
+                    wsStatus.className = 'status connected';
+                    wsIndicator.className = 'status-indicator connected';
+                    document.querySelector('.status-container').classList.remove('connecting');
+                    addLogEntry('Connexion WebSocket établie', 'info');
+                    console.log('Connexion WebSocket établie');
+                    
+                    // Envoie un ping pour vérifier l'état du serveur
+                    sendMessage({
+                        type: 'ping'
+                    });
+                    
+                    // Demande l'état initial du serveur
+                    sendMessage({
+                        type: 'get_state'
+                    });
+                };
+                
+                // Gestionnaire d'événement de fermeture de connexion
+                websocket.onclose = function(event) {
+                    clearTimeout(connectionTimeout);
+                    wsStatus.textContent = 'Déconnecté';
+                    wsStatus.className = 'status disconnected';
+                    wsIndicator.className = 'status-indicator disconnected';
+                    arduinoStatus.textContent = 'Inconnu';
+                    arduinoStatus.className = 'status disconnected';
+                    arduinoIndicator.className = 'status-indicator disconnected';
+                    
+                    // Réinitialise l'état d'authentification
+                    isAuthenticated = false;
+                    isAdmin = false;
+                    resetUIState();
+                    
+                    addLogEntry('Connexion WebSocket fermée: ' + (event.reason || 'Raison inconnue'), 'error');
+                    console.log('Connexion WebSocket fermée: ' + (event.reason || 'Raison inconnue'));
+                    
+                    // Essaie de se reconnecter après un délai
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                // Gestionnaire d'événement d'erreur
+                websocket.onerror = function(event) {
+                    console.error('Erreur WebSocket', event);
+                    addLogEntry('Erreur WebSocket', 'error');
+                };
+                
+                // Gestionnaire d'événement de message
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Message reçu:', data);
+                        processWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Erreur de traitement du message:', error);
+                        addLogEntry(`Erreur de traitement du message: ${error}`, 'error');
+                    }
+                };
+            } catch (e) {
+                console.error('Erreur lors de la création de la connexion WebSocket:', e);
+                addLogEntry(`Erreur lors de la création de la connexion WebSocket: ${e}`, 'error');
+                
+                // Essaie de se reconnecter après un délai
+                setTimeout(connectWebSocket, 5000);
+            }
+        }
+        
+        // Reset UI to initial state
+        function resetUIState() {
+            // Hide auth container
+            authContainer.style.display = 'none';
+            
+            // Hide admin panel
+            adminPanel.style.display = 'none';
+            
+            // Reset server info
+            sessionId.textContent = '-';
+            serverUptime.textContent = '-';
+            clientCount.textContent = '-';
+        }
+          // Send a message to the WebSocket server
+        function sendMessage(message) {
+            if (!websocket) {
+                console.error('Pas de connexion WebSocket disponible');
+                return false;
+            }
+            
+            if (websocket.readyState !== WebSocket.OPEN) {
+                console.error('WebSocket non connecté. État:', websocket.readyState);
+                return false;
+            }
+            
+            try {
+                console.log('Envoi du message:', message);
+                websocket.send(JSON.stringify(message));
+                return true;
+            } catch (e) {
+                console.error('Erreur lors de l\'envoi du message:', e);
+                return false;
+            }
+        }
+        
+        // Show feedback indicator
+        function showFeedbackIndicator() {
+            feedbackIndicator.classList.add('visible');
+            
+            // Auto-hide after 5 seconds of inactivity
+            clearTimeout(feedbackVisibleTimeout);
+            feedbackVisibleTimeout = setTimeout(() => {
+                if (!websocketDot.classList.contains('active') && 
+                    !joystickDot.classList.contains('active') && 
+                    !ledDot.classList.contains('active')) {
+                    feedbackIndicator.classList.remove('visible');
+                }
+            }, 5000);
+        }
+        
+        // Show activity on a specific indicator
+        function showActivity(dot, timeout) {
+            // Clear existing timeout
+            clearTimeout(timeout);
+            
+            // Show the feedback panel
+            showFeedbackIndicator();
+            
+            // Activate the specific dot
+            dot.classList.add('active');
+            
+            // Return a new timeout that will deactivate the dot after 1 second
+            return setTimeout(() => {
+                dot.classList.remove('active');
+            }, 1000);
+        }
+        
+        // Activity tracking functions
+        function trackWebSocketActivity() {
+            wsActivityTimeout = showActivity(websocketDot, wsActivityTimeout);
+        }
+        
+        function trackJoystickActivity() {
+            joystickActivityTimeout = showActivity(joystickDot, joystickActivityTimeout);
+        }
+        
+        function trackLEDActivity() {
+            ledActivityTimeout = showActivity(ledDot, ledActivityTimeout);
+        }
+        
+        // Process incoming WebSocket message
+        function processWebSocketMessage(data) {
+            if (!data.type) {
+                return;
+            }
+            
+            trackWebSocketActivity();
+            
+            switch (data.type) {
+                case 'auth_required':
+                    // Authentication required
+                    isAuthenticated = false;
+                    authContainer.style.display = 'block';
+                    addLogEntry('Authentication required');
+                    break;
+                    
+                case 'auth_failed':
+                    // Authentication failed
+                    isAuthenticated = false;
+                    addLogEntry('Authentication failed', 'error');
+                    break;
+                    
+                case 'state':
+                    // Initial state update
+                    isAuthenticated = true;
+                    updateJoystickDisplay(data.joysticks);
+                    updateLEDDisplay(data.leds);
+                    
+                    // Update Arduino status
+                    updateArduinoStatus(data.arduino_connected);
+                    
+                    // Update server info if available
+                    if (data.server_info) {
+                        updateServerInfo(data.server_info);
+                    }
+                    
+                    // Hide auth container if it was shown
+                    authContainer.style.display = 'none';
+                    
+                    addLogEntry('Received initial state from server');
+                    
+                    // Request server status to see if we're admin
+                    sendMessage({
+                        type: 'admin_command',
+                        command: 'server_status'
+                    });
+                    break;
+                    
+                case 'joystick_update':
+                    // Joystick values from Arduino
+                    updateJoystickDisplay(data.joysticks);
+                    break;
+                    
+                case 'led_update':
+                    // LED values updated
+                    updateLEDDisplay(data.leds);
+                    break;
+                    
+                case 'arduino_status':
+                    // Arduino connection status update
+                    updateArduinoStatus(data.connected);
+                    break;
+                    
+                case 'pong':
+                    // Ping response
+                    addLogEntry('Server ping successful');
+                    break;
+                    
+                case 'admin_response':
+                    // Process admin response
+                    processAdminResponse(data);
+                    break;
+                    
+                case 'server_shutdown':
+                    // Server is shutting down
+                    addLogEntry('Server is shutting down', 'error');
+                    break;
+                    
+                default:
+                    addLogEntry(`Unknown message type: ${data.type}`);
+            }
+        }
+          // Update Arduino connection status
+        function updateArduinoStatus(connected) {
+            if (connected === true) {
+                arduinoStatus.textContent = 'Connected';
+                arduinoStatus.className = 'status connected';
+                arduinoIndicator.className = 'status-indicator connected';
+            } else if (connected === false) {
+                arduinoStatus.textContent = 'Disconnected';
+                arduinoStatus.className = 'status disconnected';
+                arduinoIndicator.className = 'status-indicator disconnected';
+            } else {
+                // When connected is null or undefined (unknown state)
+                arduinoStatus.textContent = 'Unknown';
+                arduinoStatus.className = 'status disconnected';
+                arduinoIndicator.className = 'status-indicator disconnected';
+            }
+        }
+        
+        // Update server info display
+        function updateServerInfo(info) {
+            if (info.session_id) {
+                sessionId.textContent = info.session_id;
+            }
+            
+            if (info.uptime) {
+                serverUptime.textContent = info.uptime;
+            }
+            
+            if (info.clients_connected !== undefined) {
+                clientCount.textContent = info.clients_connected;
+            }
+        }
+        
+        // Process admin response
+        function processAdminResponse(data) {
+            if (!data.command) return;
+            
+            // If we received an admin response, we have admin privileges
+            if (!isAdmin) {
+                isAdmin = true;
+                adminPanel.style.display = 'block';
+                addLogEntry('Admin privileges detected');
+            }
+            
+            switch (data.command) {
+                case 'diagnostic':
+                    // Display diagnostic results
+                    const diag = data.results;
+                    let diagMessage = `Diagnostic Results:\n`;
+                    diagMessage += `- Arduino Connected: ${diag.connected}\n`;
+                    diagMessage += `- Port: ${diag.port}\n`;
+                    diagMessage += `- Data Age: ${diag.data_age ? diag.data_age.toFixed(1) + 's' : 'N/A'}\n`;
+                    diagMessage += `- LED Test: ${diag.led_test ? 'Passed' : 'Failed'}`;
+                    
+                    addLogEntry(diagMessage);
+                    break;
+                    
+                case 'server_status':
+                    // Display server status
+                    const status = data.status;
+                    updateServerInfo({
+                        session_id: status.session_id,
+                        uptime: status.uptime,
+                        clients_connected: status.client_count
+                    });
+                    
+                    addLogEntry(`Server uptime: ${status.uptime}, Clients: ${status.client_count}`);
+                    break;
+                    
+                case 'client_list':
+                    // Display client list
+                    const clients = data.clients;
+                    let clientMessage = `Connected Clients (${clients.length}):\n`;
+                    
+                    clients.forEach((client, i) => {
+                        clientMessage += `${i+1}. ID: ${client.id.substr(0, 6)}... | `;
+                        clientMessage += `IP: ${client.address} | `;
+                        clientMessage += `Auth: ${client.authenticated ? 'Yes' : 'No'} | `;
+                        clientMessage += `Admin: ${client.is_admin ? 'Yes' : 'No'} | `;
+                        clientMessage += `Msgs: ${client.messages.received}/${client.messages.sent}\n`;
+                    });
+                    
+                    addLogEntry(clientMessage);
+                    break;
+                    
+                case 'reset_arduino':
+                    // Display reset result
+                    if (data.success) {
+                        addLogEntry('Arduino reset successful');
+                    } else {
+                        addLogEntry('Arduino reset failed', 'error');
+                    }
+                    break;
+            }        }
+          // Note: updateJoystickDisplay function is defined below
+          // Helper function to normalize joystick value to x,y coordinates
+        function normalizeJoystickValue(value) {
+            // Assuming the joystick value is 0-1023 range
+            // Map joystick value to coordinates
+            // This is a simplified approach - in real life, you'd map based on joystick behavior
+            
+            // For simplicity, set y to center (512) and use the received value as x
+            return { 
+                x: value,        // Use the received value directly for X
+                y: 512           // Set Y to center (neutral position)
+            };
+        }
+          // Update a single joystick's visual representation
+        function updateJoystick(index, x, y) {
+            // If this joystick is locked, don't update its visual position
+            if (joystickLocked[index]) return;
+            
+            // Calculate the combined value or use X as primary value
+            // Using X value for display
+            const value = x;
+            
+            // Track changes for highlighting
+            const oldValue = parseInt(joystickValuesX[index].textContent);
+            const valueChanged = Math.abs(oldValue - value) > 5;
+            
+            // Update the value display with highlight effect if changed significantly
+            joystickValuesX[index].textContent = value;
+            if (valueChanged) {
+                joystickValuesX[index].classList.add('value-change');
+                setTimeout(() => {
+                    joystickValuesX[index].classList.remove('value-change');
+                }, 500);
+            }
+            
+            // Calculate position for X and Y (Arduino analog values are 0-1023)
+            // Map to a position within the joystick visual (-30px to +30px)
+            const centerX = (x - 512) / 512 * 30; // Map to -30 to +30 pixels
+            const centerY = (y - 512) / 512 * 30; // Map to -30 to +30 pixels
+            
+            // Apply the position to the joystick handle
+            joystickHandles[index].style.transform = `translate(calc(-50% + ${centerX}px), calc(-50% + ${centerY}px))`;
+            
+            // Update the indicator bar - use X value for now
+            // Map the value from 0-1023 to 0-100%
+            const percentage = Math.min(100, Math.max(0, (value / 1023) * 100));
+            joystickIndicators[index].style.width = `${percentage}%`;
+            
+            // Change the color based on value
+            // Green for middle range, yellow for off center, red for extremes
+            let color = '#4CAF50'; // Default green
+            
+            const distance = Math.abs(value - 512);
+            if (distance > 400) {
+                color = '#f44336'; // Red for extreme values
+            } else if (distance > 200) {
+                color = '#FFC107'; // Yellow for moderate offset
+            }
+            
+            joystickIndicators[index].style.background = `linear-gradient(to right, ${color}, ${color})`;
+            
+            // Game logic - only process if game is active
+            if (gameActive && index < difficulty) {
+                // Determine which zone the joystick is in
+                const zone = determineZone(value);
+                currentZones[index] = zone;
+                
+                // Update zone visualization
+                updateZoneVisualization(index, zone);
+                
+                // Check if this is the target zone
+                if (zone === targetZones[index] && !joystickLocked[index]) {
+                    // Start or continue lock timer
+                    if (!lockTimers[index]) {
+                        lockTimers[index] = setTimeout(() => {
+                            // Lock this joystick
+                            joystickLocked[index] = true;
+                            
+                            // Update visuals
+                            const joystickEl = document.querySelector(`.joystick:nth-child(${index+1}) .joystick-visual`);
+                            joystickEl.classList.add('locked');
+                            
+                            // Mark the locked zone
+                            const zoneEl = document.querySelector(`.joystick:nth-child(${index+1}) .zone-segment[data-zone="${zone}"]`);
+                            if (zoneEl) {
+                                zoneEl.classList.add('locked');
+                            }
+                            
+                            addLogEntry(`Joystick ${index+1} locked in position ${zone}`);
+                            
+                            // Check if all required joysticks are locked
+                            checkGameCompletion();
+                            
+                            // Clear the timer reference
+                            lockTimers[index] = null;
+                        }, 500); // 500ms hold time for lock
+                    }
+                } else {
+                    // Cancel lock timer if joystick moved away from target
+                    if (lockTimers[index]) {
+                        clearTimeout(lockTimers[index]);
+                        lockTimers[index] = null;
+                    }
+                }
+                
+                // Update LEDs based on proximity to target
+                updateLEDs();
+            }
+        }
+        
+        // Update zone visualization for a joystick
+        function updateZoneVisualization(index, zone) {
+            // Clear all active zones for this joystick
+            const joystickZones = document.querySelectorAll(`.joystick:nth-child(${index+1}) .zone-segment`);
+            joystickZones.forEach(zoneEl => {
+                if (!zoneEl.classList.contains('target') && !zoneEl.classList.contains('locked')) {
+                    zoneEl.classList.remove('active');
+                }
+            });
+            
+            // If a zone is detected, highlight it
+            if (zone) {
+                const zoneEl = document.querySelector(`.joystick:nth-child(${index+1}) .zone-segment[data-zone="${zone}"]`);
+                if (zoneEl && !zoneEl.classList.contains('locked')) {
+                    zoneEl.classList.add('active');
+                }
+            }
+        }
+        
+        // Update LED display based on data
+        function updateLEDDisplay(leds) {
+            if (!leds) return;
+            
+            trackLEDActivity();
+            
+            // Update display for each LED
+            if (leds.led1 !== undefined) {
+                updateLED(0, leds.led1);
+            }
+            
+            if (leds.led2 !== undefined) {
+                updateLED(1, leds.led2);
+            }
+            
+            if (leds.led3 !== undefined) {
+                updateLED(2, leds.led3);
+            }
+        }
+        
+        // Update a single LED's visual representation
+        function updateLED(index, value) {
+            // Track changes for highlighting
+            const oldValue = parseInt(ledValues[index].textContent);
+            const valueChanged = Math.abs(oldValue - value) > 5;
+            
+            // Update slider value
+            ledControls[index].value = value;
+            
+            // Update the value display with highlight effect if changed significantly
+            ledValues[index].textContent = value;
+            if (valueChanged) {
+                ledValues[index].classList.add('value-change');
+                setTimeout(() => {
+                    ledValues[index].classList.remove('value-change');
+                }, 500);
+            }
+            
+            // Calculate the LED color and effects based on intensity
+            const intensity = value / 255;
+            
+            // Base color is green with varying opacity
+            ledVisuals[index].style.backgroundColor = `rgba(76, 175, 80, ${intensity * 0.3})`;
+            
+            // Update the radial gradient for a more realistic LED effect
+            ledVisuals[index].style.background = `radial-gradient(circle at center, 
+                rgba(76, 175, 80, ${intensity * 0.9}) 0%, 
+                rgba(76, 175, 80, ${intensity * 0.5}) 60%, 
+                rgba(76, 175, 80, ${intensity * 0.2}) 80%, 
+                transparent 100%)`;
+                
+            // Update glow effect (box shadow)
+            ledVisuals[index].style.boxShadow = `
+                0 0 ${5 + 20 * intensity}px rgba(76, 175, 80, ${intensity * 0.8}), 
+                inset 0 0 ${10 * intensity}px rgba(255, 255, 255, ${intensity * 0.5})`;
+                
+            // Update border for visual definition
+            ledVisuals[index].style.border = `1px solid rgba(76, 175, 80, ${0.2 + intensity * 0.3})`;
+        }
+        
+        // Update LEDs based on proximity to target
+        function updateLEDs() {
+            if (!gameActive) return;
+            
+            // Calculate LED values based on proximity to targets
+            const ledValues = [0, 0, 0];
+            
+            for (let i = 0; i < difficulty; i++) {
+                if (currentZones[i] && targetZones[i]) {
+                    // Calculate distance between current and target zones
+                    const distance = ZONE_DISTANCES[currentZones[i]][targetZones[i]];
+                    
+                    // Calculate LED value based on distance:
+                    // - Distance 0 (exact match): 60% brightness + blinking
+                    // - Distance 1: 40% brightness
+                    // - Distance 2: 20% brightness 
+                    // - Distance 3-4: No light
+                    
+                    let brightness = 0;
+                    if (distance === 0) {
+                        brightness = 153; // 60% of 255
+                    } else if (distance === 1) {
+                        brightness = 102; // 40% of 255
+                    } else if (distance === 2) {
+                        brightness = 51;  // 20% of 255
+                    }
+                    
+                    // Set the LED value
+                    ledValues[i] = brightness;
+                    
+                    // Handle blinking for exact match (will be applied in the LED update)
+                    if (distance === 0) {
+                        document.getElementById(`led${i+1}-visual`).classList.add('blinking');
+                    } else {
+                        document.getElementById(`led${i+1}-visual`).classList.remove('blinking');
+                    }
+                }
+            }
+            
+            // Send LED values to server
+            sendMessage({
+                type: 'led_control',
+                leds: {
+                    led1: ledValues[0],
+                    led2: ledValues[1],
+                    led3: ledValues[2]
+                }
+            });
+        }
+        
+        // Check if all required joysticks are locked in position
+        function checkGameCompletion() {
+            let allLocked = true;
+            
+            for (let i = 0; i < difficulty; i++) {
+                if (!joystickLocked[i]) {
+                    allLocked = false;
+                    break;
+                }
+            }
+            
+            if (allLocked) {
+                // Game completed successfully
+                gameActive = false;
+                gameStatusText.textContent = 'Success! All positions found.';
+                
+                // Update LEDs to show success (all on max brightness)
+                sendMessage({
+                    type: 'led_control',
+                    leds: {
+                        led1: difficulty >= 1 ? 255 : 0,
+                        led2: difficulty >= 2 ? 255 : 0,
+                        led3: difficulty >= 3 ? 255 : 0
+                    }
+                });
+                
+                addLogEntry('Game completed successfully!');
+            }
+        }
+        
+        // Determine which zone a joystick is in based on its value
+        function determineZone(value) {
+            // Arduino value is 0-1023
+            // 512 is the center
+            // We need to determine which of the 8 zones the joystick is in
+            
+            // Map from 0-1023 to -1 to 1 range
+            const normalizedValue = (value - 512) / 512;
+            
+            // Handle center position case (joystick not moved)
+            if (Math.abs(normalizedValue) < 0.1) {
+                return '';  // Center position, no specific zone
+            }
+            
+            // Map to 8 directions
+            // Angles: N = 90°, NE = 45°, E = 0°, SE = 315°, S = 270°, SW = 225°, W = 180°, NW = 135°
+            const angle = Math.atan2(normalizedValue, 0) * (180 / Math.PI);
+            
+            // Normalize angle to 0-360
+            const normalizedAngle = angle < 0 ? 360 + angle : angle;
+            
+            // Determine zone based on angle
+            if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return 'N';
+            if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return 'NE';
+            if ((normalizedAngle >= 0 && normalizedAngle < 22.5) || (normalizedAngle >= 337.5 && normalizedAngle <= 360)) return 'E';
+            if (normalizedAngle >= 292.5 && normalizedAngle < 337.5) return 'SE';
+            if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return 'S';
+            if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return 'SW';
+            if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return 'W';
+            if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return 'NW';
+            
+            return ''; // Fallback
+        }
+        
+        // Setup authentication button
+        authButton.addEventListener('click', function() {
+            const token = authToken.value.trim();
+            if (!token) {
+                addLogEntry('Please enter an authentication token', 'error');
+                return;
+            }
+            
+            sendMessage({
+                type: 'auth',
+                token: token
+            });
+            
+            // Clear the token input for security
+            authToken.value = '';
+        });
+        
+        // Setup admin panel buttons
+        diagnosticButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'diagnostic'
+            });
+            addLogEntry('Running hardware diagnostic...');
+        });
+        
+        resetArduinoButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'reset_arduino'
+            });
+            addLogEntry('Resetting Arduino connection...');
+        });
+        
+        serverStatusButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'server_status'
+            });
+            addLogEntry('Requesting server status...');
+        });
+        
+        clientListButton.addEventListener('click', function() {
+            sendMessage({
+                type: 'admin_command',
+                command: 'client_list'
+            });
+            addLogEntry('Requesting client list...');
+        });
+        
+        // Setup event listeners for LED sliders
+        ledControls.forEach((control, index) => {
+            control.addEventListener('input', function() {
+                const value = parseInt(control.value);
+                updateLED(index, value);
+                trackLEDActivity();
+            });
+            
+            control.addEventListener('change', function() {
+                sendLEDValues();
+                addLogEntry(`Set LED ${index + 1} to ${control.value}`);
+                trackLEDActivity();
+            });
+        });
+        
+        // Start a new game
+        function startGame() {
+            if (gameActive) return;
+            
+            // Get selected difficulty
+            difficulty = parseInt(difficultySelect.value);
+            
+            // Reset game state
+            joystickLocked = [false, false, false];
+            lockTimers = [null, null, null];
+            
+            // Reset all joystick visuals
+            document.querySelectorAll('.joystick-visual').forEach(visual => {
+                visual.classList.remove('locked');
+            });
+            
+            // Reset all zone segments
+            document.querySelectorAll('.zone-segment').forEach(segment => {
+                segment.classList.remove('active', 'target', 'locked');
+            });
+            
+            // Create random target zones for each active joystick
+            targetZones = [];
+            for (let i = 0; i < 3; i++) {
+                // Avoid the default center position by selecting a specific zone
+                const randomZone = ZONES[Math.floor(Math.random() * ZONES.length)];
+                targetZones.push(i < difficulty ? randomZone : '');
+                
+                // Mark the target zones visually if debugging is needed
+                if (i < difficulty) {
+                    // Highlight the target zone for development/testing
+                    // In a real game, we'd hide this and only show proximity via LEDs
+                    const joystickZones = document.querySelectorAll(`.joystick:nth-child(${i+1}) .zone-segment`);
+                    joystickZones.forEach(zone => {
+                        if (zone.getAttribute('data-zone') === randomZone) {
+                            zone.classList.add('target');
+                        }
+                    });
+                }
+            }
+            
+            // Update game status
+            gameActive = true;
+            gameStatusText.textContent = `Find the correct position for ${difficulty} joystick${difficulty > 1 ? 's' : ''}`;
+            
+            // Start with all LEDs off
+            updateLEDs();
+            
+            addLogEntry(`Game started - Difficulty: ${difficulty}`);
+        }
+        
+        // Reset the current game
+        function resetGame() {
+            gameActive = false;
+            
+            // Clear all lock timers
+            lockTimers.forEach((timer, index) => {
+                if (timer) {
+                    clearTimeout(timer);
+                    lockTimers[index] = null;
+                }
+            });
+            
+            // Reset joystick locked states
+            joystickLocked = [false, false, false];
+            
+            // Reset visuals
+            document.querySelectorAll('.joystick-visual').forEach(visual => {
+                visual.classList.remove('locked');
+            });
+            
+            document.querySelectorAll('.zone-segment').forEach(segment => {
+                segment.classList.remove('active', 'target', 'locked');
+            });
+            
+            // Reset LEDs
+            sendMessage({
+                type: 'led_control',
+                leds: {
+                    led1: 0,
+                    led2: 0,
+                    led3: 0
+                }
+            });
+            
+            gameStatusText.textContent = 'Game reset. Ready to start a new game.';
+            addLogEntry('Game reset');
+        }
+        
+        // Setup game buttons
+        startGameButton.addEventListener('click', startGame);
+        resetGameButton.addEventListener('click', resetGame);
+        
+        // Initialize WebSocket connection and UI
+        connectWebSocket();
+        
+        // Initialize empty feedback indicator
+        showFeedbackIndicator();
+    </script>
+
+<script>
+// Fixed joystick handlers
+// Updated joystick handling functions for lockbox
+
+// Helper function to normalize joystick value to x,y coordinates
+function normalizeJoystickValue(value) {
+    // For single-value joysticks (when we only have one value per joystick)
+    // Convert to x,y coordinates for consistent handling
+    return { 
+        x: value,
+        y: 512 // Center Y position
+    };
+}
+
+// Update joystick display based on data from the server
+function updateJoystickDisplay(joysticks) {
+    if (!joysticks) return;
+    
+    trackJoystickActivity();
+    
+    // Check if we have X,Y pairs (new format)
+    if (joysticks.joystick1X !== undefined && joysticks.joystick1Y !== undefined) {
+        // We have X,Y coordinates directly
+        console.log("Received X,Y format:", joysticks);
+        updateJoystick(0, joysticks.joystick1X, joysticks.joystick1Y);
+        updateJoystick(1, joysticks.joystick2X, joysticks.joystick2Y);
+        updateJoystick(2, joysticks.joystick3X, joysticks.joystick3Y);
+    } 
+    // Fallback to single value if X,Y pairs are not available (old format)
+    else if (joysticks.joystick1 !== undefined) {
+        console.log("Received single value format:", joysticks);
+        // Convert single values to X,Y pairs
+        const j1 = normalizeJoystickValue(joysticks.joystick1);
+        const j2 = normalizeJoystickValue(joysticks.joystick2);
+        const j3 = normalizeJoystickValue(joysticks.joystick3);
+        
+        updateJoystick(0, j1.x, j1.y);
+        updateJoystick(1, j2.x, j2.y);
+        updateJoystick(2, j3.x, j3.y);
+    }
+}
+
+// Update a single joystick's visual representation
+function updateJoystick(index, x, y) {
+    // If this joystick is locked, don't update its visual position
+    if (joystickLocked[index]) return;
+    
+    // Update the X value display
+    joystickValuesX[index].textContent = `X: ${x}`;
+    
+    // Update the Y value display
+    joystickValuesY[index].textContent = `Y: ${y}`;
+    
+    // Calculate position for X and Y (Arduino analog values are 0-1023)
+    // Map to a position within the joystick visual (-30px to +30px)
+    const centerX = (x - 512) / 512 * 30; // Map to -30 to +30 pixels
+    const centerY = (y - 512) / 512 * 30; // Map to -30 to +30 pixels
+    
+    // Apply the position to the joystick handle
+    joystickHandles[index].style.transform = `translate(calc(-50% + ${centerX}px), calc(-50% + ${centerY}px))`;
+    
+    // Update the indicator bar - use X value for now
+    // Map the value from 0-1023 to 0-100%
+    const percentage = Math.min(100, Math.max(0, (x / 1023) * 100));
+    joystickIndicators[index].style.width = `${percentage}%`;
+    
+    // Change the color based on value
+    // Green for middle range, yellow for off center, red for extremes
+    let color = '#4CAF50'; // Default green
+    
+    const distance = Math.abs(x - 512);
+    if (distance > 400) {
+        color = '#f44336'; // Red for extreme values
+    } else if (distance > 200) {
+        color = '#FFC107'; // Yellow for moderate offset
+    }
+    
+    joystickIndicators[index].style.background = `linear-gradient(to right, ${color}, ${color})`;
+    
+    // Game logic - only process if game is active
+    if (gameActive && index < difficulty) {
+        // Determine which zone the joystick is in
+        const zone = determineZone(x, y);
+        currentZones[index] = zone;
+        
+        // Update zone visualization
+        updateZoneVisualization(index, zone);
+        
+        // Check if this is the target zone
+        if (zone === targetZones[index] && !joystickLocked[index]) {
+            // Start or continue lock timer
+            if (!lockTimers[index]) {
+                lockTimers[index] = setTimeout(() => {
+                    // Lock this joystick
+                    joystickLocked[index] = true;
+                    
+                    // Update visuals
+                    const joystickEl = document.querySelector(`.joystick:nth-child(${index+1}) .joystick-visual`);
+                    joystickEl.classList.add('locked');
+                    
+                    // Mark the locked zone
+                    const zoneEl = document.querySelector(`.joystick:nth-child(${index+1}) .zone-segment[data-zone="${zone}"]`);
+                    if (zoneEl) {
+                        zoneEl.classList.add('locked');
+                    }
+                    
+                    addLogEntry(`Joystick ${index+1} locked in position ${zone}`);
+                    
+                    // Check if all required joysticks are locked
+                    checkGameCompletion();
+                    
+                    // Clear the timer reference
+                    lockTimers[index] = null;
+                }, 500); // 500ms hold time for lock
+            }
+        } else {
+            // Cancel lock timer if joystick moved away from target
+            if (lockTimers[index]) {
+                clearTimeout(lockTimers[index]);
+                lockTimers[index] = null;
+            }
+        }
+        
+        // Update LEDs based on proximity to target
+        updateLEDs();
+    }
+}
+
+// Enhanced function to determine joystick zone using both X and Y coordinates
+function determineZone(x, y) {
+    // Arduino values are 0-1023, with center at 512
+    // Convert to -1 to 1 range
+    const normalizedX = (x - 512) / 512;
+    const normalizedY = (y - 512) / 512;
+    
+    // Calculate distance from center
+    const distance = Math.sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+    
+    // If joystick is near center, return empty zone
+    if (distance < 0.2) {
+        return '';
+    }
+    
+    // Calculate angle in radians and convert to degrees
+    const angle = Math.atan2(-normalizedY, normalizedX) * (180 / Math.PI);
+    
+    // Normalize angle to 0-360
+    const normalizedAngle = angle < 0 ? 360 + angle : angle;
+    
+    // Determine zone based on angle
+    if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return 'E';
+    if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return 'NE';
+    if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return 'N';
+    if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return 'NW';
+    if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return 'W';
+    if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return 'SW';
+    if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return 'S';
+    if (normalizedAngle >= 292.5 && normalizedAngle < 337.5) return 'SE';
+    
+    return ''; // Fallback
+}
+
+// Function to send current LED values to the server
+function sendLEDValues() {
+    sendMessage({
+        type: 'led_control',
+        leds: {
+            led1: parseInt(ledControls[0].value),
+            led2: parseInt(ledControls[1].value),
+            led3: parseInt(ledControls[2].value)
+        }
+    });
+}
+
+// Fixed WebSocket activity function
+function trackWebSocketActivity() {
+    if (websocketDot) {
+        wsActivityTimeout = showActivity(websocketDot, wsActivityTimeout);
+    } else {
+        console.error("websocketDot element not found");
+    }
+}
+
+</script>
+</body>
+</html>
+

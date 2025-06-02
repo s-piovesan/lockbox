@@ -132,3 +132,86 @@ If joysticks are not displaying correctly:
 3. Enhanced error handling and logging for better diagnostics
 4. Fixed WebSocket activity indicators in the UI
 5. Added helper scripts for testing and deployment
+<<<<<<< HEAD
+6. **Restored Missing Visualization Elements**
+   - Added auto-creation of joystick indicator tiles when missing
+   - Fixed pin indicators that show joystick position in the columns
+   - Added value displays for real-time joystick position values
+
+## Foundry VTT v12 Compatibility Update
+
+The module has been updated to ensure compatibility with Foundry VTT version 12. These changes include:
+
+1. **Updated Tile API**
+   - Replaced all `img` properties with `texture: {src: "path"}` syntax to match the v12 API
+   - Updated 8 instances of tile creation code to use the new format
+
+2. **Levels Module Compatibility**
+   - Added compatibility hook for `Scene.prototype.createEmbeddedDocuments`
+   - Ensured both `z` and `elevation` properties exist for backward compatibility
+   - Added null reference protection with nullish coalescing operators (`??`)
+
+3. **Error Handling Improvements**
+   - Added try/catch blocks around critical functions
+   - Implemented error handling in `updateJoystickVisuals` and `createLockboxChest`
+   - Added proper checks before accessing potentially undefined properties
+
+4. **Syntax Error Fixes**
+   - Fixed variable definition issues (e.g., "tiles is not defined" error)
+   - Improved code structure for better maintainability
+
+5. **Visualization Enhancements**
+   - Made `updateJoystickVisuals` function asynchronous to support element creation
+   - Added error handling for visual element creation/updates
+   - Added compatibility patches for Levels module to prevent visualization errors
+
+## Testing Visualization Elements
+
+To test the visualization elements within Foundry VTT:
+
+1. Open your browser's developer console (F12)
+2. Copy and paste the contents of `test_visualization.js` into the console
+3. Navigate to any lockbox scene
+4. Run the test with:
+   ```javascript
+   testLockboxVisuals()
+   ```
+5. To stop the test:
+   ```javascript
+   stopLockboxVisualTest()
+   ```
+
+For more details, see [VISUALIZATION_ELEMENTS_FIX.md](VISUALIZATION_ELEMENTS_FIX.md).
+
+## Testing the v12 Compatibility
+
+### Using the PowerShell Test Script
+
+Run the `test_module_compatibility.ps1` script to check for compatibility issues:
+
+```powershell
+.\test_module_compatibility.ps1
+```
+
+This script will:
+- Analyze the module code for v12 compatibility patterns
+- Check that all `img` properties have been converted to the new format
+- Verify error handling is in place for critical functions
+- Generate a compatibility report
+
+### In-Game Testing
+
+1. Install the updated module in Foundry VTT v12
+2. Open your browser's developer console (F12)
+3. Copy and paste the contents of `test_module_in_foundry.js` into the console
+4. Run the tests by typing: `LockboxTester.runAllTests()`
+
+The test script will validate:
+- Module presence and activation
+- Compatibility with the Levels module (if installed)
+- Proper creation and cleanup of lockbox chest objects
+- Correct property handling for v12 compatibility
+
+If you encounter any issues, please check the browser console for detailed error messages and report them with screenshots.
+=======
+>>>>>>> 1f70f4a (update)
